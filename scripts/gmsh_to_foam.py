@@ -1,0 +1,59 @@
+#!/usr/bin/env python
+
+# file: $FLYING_SNAKE_OPENFOAM/scripts/gmsh_to_foam.py
+# author: Olivier Mesnard (mesnardo@gwu.edu)
+# description: change the boundary patches in folder constant/polyMesh
+
+
+import os
+import sys
+import argparse
+
+
+def read_inputs():
+	"""Parses the command-line."""
+	# create the parser
+	parser = argparse.ArgumentParser(description='Change the boundary patches '
+									 'in the file constant/polyMesh/boundary '
+									 'of the OpenFOAM case')
+	# fill the parser with arguments
+	parser.add_argument('--case', dest='case', type=str, default='.',
+						help='path of the OpenFOAM case')
+	return parser.parse_args()
+
+
+def main():
+	"""Changes the boundary patches in the file constant/polyMesh/boundary
+	of the OpenFOAM case.
+	"""
+	# parse the command-line
+	args = read_inputs()
+
+	# path of the file containing the patches
+	boundary_path = '%s/constant/polyMesh/boundary' % args.case
+
+	# read the boundary file
+	with open(boundary_path, 'r') as infile:
+		lines = infile.readlines()
+
+	# change boundary patches
+	for i, line in enumerate(lines):
+		if 'front' in line or 'back' in line:
+			lines[i+2] = lines[i+2].replace('patch', 'empty')
+		elif 'top' in line or 'bottom' in line:
+			lines[i+2] = lines[i+2].replace('patch', 'symmetryPlane')
+		elif 'inlet' in line:
+			lines[i+3] = lines[i+3].replace('patch', 'inlet')
+		elif 'outlet' in line:
+			lines[i+3] = lines[i+3].replace('patch', 'outlet')
+		elif 'snake' in line:
+			lines[i+2] = lines[i+2].replace('patch', 'wall')
+			lines[i+3] = lines[i+3].replace('patch', 'wall')
+			
+	# write the new boundary file
+	with open(boundary_path, 'w') as outfile:
+		outfile.write(''.join(lines))
+
+
+if __name__ == '__main__':
+	main()
