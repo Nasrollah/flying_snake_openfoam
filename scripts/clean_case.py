@@ -54,7 +54,7 @@ def main():
 	if args.logs:
 		parts['logs'] = '%s/*log*' % args.case
 	if args.forces:
-		parts['forces'] = '%s/postProcessing/force*' % args.case
+		parts['forces'] = '%s/postProcessing' % args.case
 
 	print 'case: %s' % args.case
 	# remove paths that are in the dictionary
