@@ -29,8 +29,10 @@ def read_inputs():
 						help='does not remove log files')
 	parser.add_argument('--no-of_files', dest='of_files', action='store_false',
 						help='does not remove .OpenFOAM files')
+	parser.add_argument('--no-forces', dest='forces', action='store_false',
+						help='does not remove forces data')
 	parser.set_defaults(images=True, processors=True, solutions=True, logs=True,
-						of_files=True)
+						of_files=True, forces=True)
 	return parser.parse_args()
 
 
@@ -51,6 +53,8 @@ def main():
 		parts['solutions'] = '%s/[1-9]*' % args.case
 	if args.logs:
 		parts['logs'] = '%s/*log*' % args.case
+	if args.forces:
+		parts['forces'] = '%s/postProcessing/force*' % args.case
 
 	print 'case: %s' % args.case
 	# remove paths that are in the dictionary
