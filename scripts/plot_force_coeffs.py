@@ -75,6 +75,11 @@ def main():
 	print '\t--> mean drag coefficient: %g' % cd_mean
 	print '\t--> mean lift coefficient: %g' % cl_mean
 
+	# create images folder is not existing
+	images_path = '%s/images' % args.case
+	if not os.path.isdir(images_path):
+		os.makedirs(images_path)
+
 	# plot instantaneous force coefficients
 	plt.figure()
 	plt.grid(True)
@@ -109,7 +114,7 @@ def main():
 		plt.plot(t_cuibm, cl_cuibm, label=r'$C_l$ - cuIBM', color='b', ls='--')
 
 	plt.legend(loc='best', prop={'size': 16})
-	plt.savefig('%s/postProcessing/%s.png' % (args.case, args.output))
+	plt.savefig('%s/%s.png' % (images_path, args.output))
 	if args.show:
 		plt.show()
 
