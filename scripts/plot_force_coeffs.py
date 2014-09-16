@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# file: $OPENFOAM_CASE_DIR/postProcessing/plot_forceCoeffs.py
+# file: $FLYING_SNAKE_OPENFOAM/postProcessing/plot_forceCoeffs.py
 # author: Olivier Mesnard (mesnardo@gwu.edu)
 # description: plots aerodynamic coefficients of the flying snake
 
