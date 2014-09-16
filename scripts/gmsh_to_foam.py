@@ -36,7 +36,7 @@ def main():
 	os.system('cp %s %s/.' % (args.mesh, args.case))
 
 	mesh_path = '%s/*.msh' % args.case
-	log_path = '%s/log' % args.case
+	log_path = '%s/mesh.log' % args.case
 
 	# run OpenFOAM utility gmshToFoam
 	os.system('gmshToFoam -case %s %s > %s' % (args.case, mesh_path, log_path))
@@ -68,6 +68,9 @@ def main():
 
 	# check the quality of the mesh
 	os.system('checkMesh -case %s >> %s' % (args.case, log_path))
+
+	# delete mesh file
+	os.system('rm -rf %s' % mesh_path)
 
 
 if __name__ == '__main__':
