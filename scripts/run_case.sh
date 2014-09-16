@@ -8,11 +8,13 @@
 # path of the case
 CASE_PATH=$1
 
+LOG_PATH=$CASE_PATH/simu.log
+
 # domain decomposition
-decomposePar -case $CASE_PATH > simu.log
+decomposePar -case $CASE_PATH > $LOG_PATH
 
 # run the simulation in parallel
-mpirun -np 6 icoFoam -case $CASE_PATH -parallel >> simu.log
+mpirun -np 6 icoFoam -case $CASE_PATH -parallel >> $LOG_PATH
 
 # reconstruct the solution
-reconstructPar -case $CASE_PATH >> simu.log
+reconstructPar -case $CASE_PATH >> $LOG_PATH
