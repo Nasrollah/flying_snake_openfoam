@@ -35,8 +35,11 @@ def main():
 		args.mesh = '%s/mesh_generation/*.msh' % args.case
 	os.system('cp %s %s/.' % (args.mesh, args.case))
 
+	mesh_path = '%s/*.msh' % args.case
+	log_path = '%s/log' % args.case
+
 	# run OpenFOAM utility gmshToFoam
-	os.system('gmshToFoam -case %s/*msh' % args.case)
+	os.system('gmshToFoam -case %s %s > %s' % (args.case, mesh_path, log_path))
 
 	# path of the file containing the patches
 	boundary_path = '%s/constant/polyMesh/boundary' % args.case
@@ -64,7 +67,7 @@ def main():
 		outfile.write(''.join(lines))
 
 	# check the quality of the mesh
-	os.system('checkMesh -case %s' % args.case)
+	os.system('checkMesh -case %s >> %s' % (args.case, log_path))
 
 
 if __name__ == '__main__':
