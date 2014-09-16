@@ -9,7 +9,7 @@
 CASE_PATH=$1
 
 # domain decomposition
-decomposePar > simu.log
+decomposePar -case $CASE_PATH > simu.log
 
 # run the simulation in parallel
 mpirun -np 6 icoFoam -case $CASE_PATH -parallel >> simu.log
