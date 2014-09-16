@@ -101,7 +101,7 @@ def main():
 	data_representation_2.LookupTable = a3_Vorticity_PVLookupTable
 	data_representation_2.ColorAttributeType = 'CELL_DATA'
 
-	text.Text = 'time = 0s'
+	text.Text = 'time = 0'
 
 	data_representation_3 = Show()
 	data_representation_3.FontSize = 12
