@@ -6,7 +6,6 @@
 
 
 import os
-import sys
 import argparse
 
 
@@ -19,6 +18,8 @@ def read_inputs():
 	# fill the parser with arguments
 	parser.add_argument('--case', dest='case', type=str, default='.',
 						help='path of the OpenFOAM case')
+	parser.add_argument('--mesh', dest='mesh', type=str, default=None,
+						help='path of the GMSH file')
 	return parser.parse_args()
 
 
@@ -28,6 +29,14 @@ def main():
 	"""
 	# parse the command-line
 	args = read_inputs()
+
+	# copy the GMSH file inside the case folder
+	if args.mesh == None:
+		args.mesh = '%s/mesh_generation/*.msh' % args.case
+	os.system('cp %s %s/.' % (args.mesh, args.case))
+
+	# run OpenFOAM utility gmshToFoam
+	os.system('gmshToFoam -case %s/*msh' % args.case)
 
 	# path of the file containing the patches
 	boundary_path = '%s/constant/polyMesh/boundary' % args.case
@@ -53,6 +62,9 @@ def main():
 	# write the new boundary file
 	with open(boundary_path, 'w') as outfile:
 		outfile.write(''.join(lines))
+
+	# check the quality of the mesh
+	os.system('checkMesh -case %s' % args.case)
 
 
 if __name__ == '__main__':
