@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/opt/OpenFOAM/ThirdParty-2.2.2/platforms/linux64Gcc/paraview-3.12.0/bin/pvbatch
 
 # file: $FLYING_SNAKE_OPENFOAM/scripts/plot_vorticity.py
 # author: Olivier Mesnard (mesnardo@gwu.edu)
@@ -8,11 +8,7 @@
 import argparse
 import os
 
-try:
-	paraview.simple
-except:
-	from paraview.simple import *
-paraview.simple._DisableFirstRenderCameraReset()
+from paraview.simple import *
 
 
 def read_inputs():
@@ -23,6 +19,9 @@ def read_inputs():
 	# fill the parser with arguments
 	parser.add_argument('--case', dest='case', type=str, default='.',
 						help='path of the OpenFOAM case')
+	parser.add_argument('--vortlim', dest='vort_lim', type=float, default=5.0,
+						help='upper limit of the zero-symmetric range '
+							 'to plot the vorticity field')
 	return parser.parse_args()
 
 
@@ -30,7 +29,6 @@ def main():
 	"""Executes the ParaView macro to plot vorticity field."""
 	# parse the command-line
 	args = read_inputs()
-	
 
 	# create images folder if does not exist
 	images_path = '%s/images' % args.case
@@ -71,7 +69,8 @@ def main():
 	text = Text()
 
 	a3_Vorticity_PVLookupTable = GetLookupTableForArray('Vorticity', 3, 
-					RGBPoints=[-5.0, 0.0, 0.0, 1.0, 5.0, 1.0, 0.0, 0.0], 
+					RGBPoints=[-args.vort_lim, 0.0, 0.0, 1.0, 
+							   +args.vort_lim, 1.0, 0.0, 0.0], 
 					VectorMode='Component', 
 					VectorComponent=2, 
 					NanColor=[0.4980392156862745, 0.4980392156862745, 
