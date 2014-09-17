@@ -8,6 +8,7 @@
 import argparse
 import os
 
+import numpy
 from paraview.simple import *
 
 
@@ -20,8 +21,14 @@ def read_inputs():
 	parser.add_argument('--case', dest='case', type=str, default='.',
 						help='path of the OpenFOAM case')
 	parser.add_argument('--vortlim', dest='vort_lim', type=float, default=5.0,
-						help='upper limit of the zero-symmetric range '
-							 'to plot the vorticity field')
+						help='upper limit of zero-symmetric vorticity range')
+	parser.add_argument('--times', dest='times', type=float, nargs='+',
+						default=None,
+						help='range of times to plot (min, max, increment)')
+	parser.add_argument('--start', dest='start', type=float, default=None,
+						help='starting-time to plot')
+	parser.add_argument('--end', dest='end', type=float, default=None,
+						help='ending-time to plot')
 	return parser.parse_args()
 
 
@@ -57,6 +64,7 @@ def main():
 	data_representation = Show()
 	data_representation.EdgeColor = [0.0, 0.0, 0.5]	# HSV ?
 
+	# compute the vorticity
 	compute_derivatives = ComputeDerivatives()
 	compute_derivatives.Scalars = ['POINTS', 'p']
 	compute_derivatives.Vectors = ['POINTS', 'U']
@@ -110,8 +118,20 @@ def main():
 
 	view = GetActiveView()
 	view.ViewSize = [975, 483]
+
+	# get the time-steps to plot
+	time_steps = numpy.array(flying_snake.TimestepValues)
+	if args.start:
+		i_start = numpy.where(time_steps >= args.start)[0][0]
+		time_steps = time_steps[args.start:]
+	if args.end:
+		i_end = numpy.where(time_steps > args.end)[0][0]
+		time_steps = time_steps[:i_end]
+	if args.times:
+		start, end, every = args.times[0], args.times[1], args.times[2]
+		time_steps = numpy.arange(start, end+every, every)
 	
-	time_steps = flying_snake.TimestepValues
+	# time-loop to plot and save the vorticity field
 	for ite in time_steps:
 		render_view.ViewTime = ite
 		animation_scene.AnimationTime = ite
