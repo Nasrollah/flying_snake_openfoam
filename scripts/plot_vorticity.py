@@ -29,7 +29,27 @@ def read_inputs():
 						help='starting-time to plot')
 	parser.add_argument('--end', dest='end', type=float, default=None,
 						help='ending-time to plot')
+	parser.add_argument('--view', dest='view', type=str, default='near_wake',
+						help='choose a pre-recorder view')
 	return parser.parse_args()
+
+
+def dict_views():
+	"""Returns a dictionary of the different available views."""
+	views = {}
+	views['near_wake'] = {'CameraPosition': [2.25, 0.0, 8.0],
+						  'CameraFocalPoint': [2.25, 0.0, 0.0],
+						  'CameraClippingRange': [6.93, 7.105],
+						  'ViewSize': [900, 400]}
+	views['snake'] = {'CameraPosition': [0.2, 0.0, 4.0],
+					  'CameraFocalPoint': [0.2, 0.0, 0.0],
+					  'CameraClippingRange': [2.97, 3.045],
+					  'ViewSize': [850, 450]}
+	views['outlet'] = {'CameraPosition': [12.0, 0.0, 20.0],
+					   'CameraFocalPoint': [12.0, 0.0, 0.0],
+					   'CameraClippingRange': [18.81, 19.26],
+					   'ViewSize': [850, 500]}
+	return views
 
 
 def main():
@@ -42,27 +62,28 @@ def main():
 	if not os.path.isdir(images_path):
 		os.makedirs(images_path)
 
-	of_file_name = '%s.OpenFOAM' % os.path.basename(os.path.normpath(args.case))
 
+	# display front patch and read pressure and velocity
+	of_file_name = '%s.OpenFOAM' % os.path.basename(os.path.normpath(args.case))
 	flying_snake = PV3FoamReader(FileName=('%s/%s' % (args.case, of_file_name)))
 	flying_snake.VolumeFields = ['p', 'U']
 	flying_snake.MeshParts = ['front - patch']
 
-	# create a render view
-	render_view = GetRenderView()
-	render_view.CenterAxesVisibility = 0
-	render_view.OrientationAxesVisibility = 0
-	render_view.CameraPosition = [2.25, 0.0, 8.0]
-	render_view.CameraFocalPoint = [2.25, 0.0, 1.0]
-	render_view.CameraClippingRange = [6.93, 7.105]
-	render_view.CenterOfRotation = [0.0, 0.0, 1.0]
-	render_view.CameraParallelScale = 30.0
-
-	# create an animation scene
-	animation_scene = GetAnimationScene()
-
-	data_representation = Show()
-	data_representation.EdgeColor = [0.0, 0.0, 0.5]	# HSV ?
+	# get pre-recorded views
+	views = dict_views()
+	# select the appropriate view
+	v = views[args.view]
+	# set up the view
+	view = GetRenderView()
+	view.CenterAxesVisibility = 0
+	view.OrientationAxesVisibility = 0
+	view.CameraPosition = v['CameraPosition']
+	view.CameraFocalPoint = v['CameraFocalPoint']
+	view.CameraClippingRange = v['CameraClippingRange']
+	view.CenterOfRotation = [0.0, 0.0, 1.0]
+	view.CameraParallelScale = 30.0
+	view.ViewSize = v['ViewSize']
+	view.Background = [0.34, 0.34, 0.34]
 
 	# compute the vorticity
 	compute_derivatives = ComputeDerivatives()
@@ -71,24 +92,18 @@ def main():
 	compute_derivatives.OutputTensorType = 'Nothing'
 	compute_derivatives.OutputVectorType = 'Vorticity'
 
-	data_representation_2 = Show()
-	data_representation_2.EdgeColor = [0.0, 0.0, 0.5]	# HSV ?
-
-	text = Text()
-
+	# edit color-map
 	a3_Vorticity_PVLookupTable = GetLookupTableForArray('Vorticity', 3, 
 					RGBPoints=[-args.vort_lim, 0.0, 0.0, 1.0, 
 							   +args.vort_lim, 1.0, 0.0, 0.0], 
 					VectorMode='Component', 
 					VectorComponent=2, 
-					NanColor=[0.4980392156862745, 0.4980392156862745, 
-							  0.4980392156862745],
+					NanColor=[0.0, 0.0, 0.0],
 					ColorSpace='Diverging', 
 					ScalarRangeInitialized=1.0, 
 					LockScalarRange=1)
 
-	a3_Vorticity_PiecewiseFunction = CreatePiecewiseFunction()
-
+	# add a scalar bar
 	scalar_bar_widget_representation = CreateScalarBar(ComponentTitle='', 
 										Title='vorticity', 
 										Position2=[0.1, 0.5], 
@@ -99,25 +114,21 @@ def main():
 										TitleFontSize=12, 
 										TitleColor=[0.0, 0.0, 0.0], 
 										Position=[0.02, 0.25])
-	
-	GetRenderView().Representations.append(scalar_bar_widget_representation)
+	view.Representations.append(scalar_bar_widget_representation)
 
-	data_representation.Visibility = 0
+	# show the vorticity field
+	data_representation = Show()
+	data_representation.ColorArrayName = 'Vorticity'
+	data_representation.LookupTable = a3_Vorticity_PVLookupTable
+	data_representation.ColorAttributeType = 'CELL_DATA'
 
-	data_representation_2.ColorArrayName = 'Vorticity'
-	data_representation_2.LookupTable = a3_Vorticity_PVLookupTable
-	data_representation_2.ColorAttributeType = 'CELL_DATA'
-
-	text.Text = 'time = 0'
-
+	# add text to the view
+	text = Text()
 	data_representation_3 = Show()
 	data_representation_3.FontSize = 12
 	data_representation_3.TextScaleMode = 2
-	data_representation_3.Position = [0.02, 0.9]
+	data_representation_3.Position = [0.02, 0.9]	# 0.0, 0.0: bottom-left
 	data_representation_3.Color = [0.0, 0.0, 0.0]
-
-	view = GetActiveView()
-	view.ViewSize = [975, 483]
 
 	# get the time-steps to plot
 	time_steps = numpy.array(flying_snake.TimestepValues)
@@ -132,11 +143,11 @@ def main():
 		time_steps = numpy.arange(start, end+every, every)
 	
 	# time-loop to plot and save the vorticity field
-	for ite in time_steps:
-		render_view.ViewTime = ite
-		animation_scene.AnimationTime = ite
-		text.Text = 'time = %g' % ite
-		WriteImage('%s/vorticity_%g.png' % (images_path, ite))
+	for time_step in time_steps:
+		view.ViewTime = time_step
+		text.Text = 'time = %g' % time_step
+		WriteImage('%s/vorticity_%s_%g.png' 
+				   % (images_path, args.view, time_step))
 
 
 if __name__ == '__main__':
