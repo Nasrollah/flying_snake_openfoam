@@ -29,27 +29,39 @@ def read_inputs():
 						help='starting-time to plot')
 	parser.add_argument('--end', dest='end', type=float, default=None,
 						help='ending-time to plot')
-	parser.add_argument('--view', dest='view', type=str, default='near_wake',
-						help='choose a pre-recorder view')
+	parser.add_argument('--view', dest='view', type=str, default=None,
+						help='pre-recorded view')
+	parser.add_argument('--bl', dest='bottom_left', type=float, nargs='+', 
+						default=[-2.0,-2.0],
+						help='bottom-left corner of the view')
+	parser.add_argument('--tr', dest='top_right', type=float, nargs='+', 
+						default=[+2.0,+2.0],
+						help='top-right corner of the view')
+	parser.add_argument('--width', dest='width', type=float, default=600,
+						help='width (in pixel) of the image generated')
 	return parser.parse_args()
 
 
-def dict_views():
-	"""Returns a dictionary of the different available views."""
+def get_view(view='snake'):
+	"""Returns the limits and the width of the plot.
+	
+	Arguments
+	---------
+	view -- name of the pre-recorded view (default 'snake').
+	"""
 	views = {}
-	views['near_wake'] = {'CameraPosition': [2.25, 0.0, 8.0],
-						  'CameraFocalPoint': [2.25, 0.0, 0.0],
-						  'CameraClippingRange': [6.93, 7.105],
-						  'ViewSize': [900, 400]}
-	views['snake'] = {'CameraPosition': [0.2, 0.0, 4.0],
-					  'CameraFocalPoint': [0.2, 0.0, 0.0],
-					  'CameraClippingRange': [2.97, 3.045],
-					  'ViewSize': [850, 450]}
-	views['outlet'] = {'CameraPosition': [12.0, 0.0, 20.0],
-					   'CameraFocalPoint': [12.0, 0.0, 0.0],
-					   'CameraClippingRange': [18.81, 19.26],
-					   'ViewSize': [850, 500]}
-	return views
+	views['snake'] = {'x_bl': -1.0, 'y_bl': -1.0,
+					  'x_tr': 1.5, 'y_tr': 1.0,
+					  'width': 600}
+	views['near_wake'] = {'x_bl': -1.0, 'y_bl': -2.0,
+						  'x_tr': 5.0, 'y_tr': 2.0,
+						  'width': 1000}
+	views['wake'] = {'x_bl': -2.0, 'y_bl': -3.0,
+					  'x_tr': 20.0, 'y_tr': 3.0,
+					  'width': 1000}
+	return ( views[view]['x_bl'], views[view]['y_bl'],
+			 views[view]['x_tr'], views[view]['y_tr'],
+			 views[view]['width'] )
 
 
 def main():
@@ -69,21 +81,31 @@ def main():
 	flying_snake.VolumeFields = ['p', 'U']
 	flying_snake.MeshParts = ['front - patch']
 
-	# get pre-recorded views
-	views = dict_views()
-	# select the appropriate view
-	v = views[args.view]
-	# set up the view
+	# get the limits of the plot and the width of the figure
+	if not args.view:
+		x_bl, y_bl = args.bottom_left[0], args.bottom_left[1]
+		x_tr, y_tr = args.top_right[0], args.top_right[1]
+		width = args.width
+		args.view = 'custom'
+	else:
+		x_bl, y_bl, x_tr, y_tr, width = get_view(view=args.view)
+
+	x_center, y_center = 0.5*(x_tr+x_bl), 0.5*(y_tr+y_bl)
+	h = 0.5*(y_tr-y_bl) + 1.
+	height = width*(y_tr-y_bl)/(x_tr-x_bl)
+
 	view = GetRenderView()
+	view.ViewSize = [width, height]
+	Render()
 	view.CenterAxesVisibility = 0
 	view.OrientationAxesVisibility = 0
-	view.CameraPosition = v['CameraPosition']
-	view.CameraFocalPoint = v['CameraFocalPoint']
-	view.CameraClippingRange = v['CameraClippingRange']
+	view.CameraPosition = [x_center, y_center, h]
+	view.CameraFocalPoint = [x_center, y_center, 0.0]
+	view.CameraViewUp = [0.0, 1.0, 0.0]
 	view.CenterOfRotation = [0.0, 0.0, 1.0]
-	view.CameraParallelScale = 30.0
-	view.ViewSize = v['ViewSize']
+	view.CameraViewAngle = 90.0
 	view.Background = [0.34, 0.34, 0.34]
+	Render()
 
 	# compute the vorticity
 	compute_derivatives = ComputeDerivatives()
