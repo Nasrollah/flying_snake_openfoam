@@ -95,7 +95,10 @@ def main():
 													 unpack=True)
 		# keep useful slices
 		i_start = np.where(t_cuibm >= t_start)[0][0]
-		i_end = np.where(t_cuibm >= t_end)[0][0]-1
+		if t_end > t_cuibm[-1]:
+			i_end = t_cuibm.size-1
+		else:
+			i_end = np.where(t_cuibm >= t_end)[0][0]-1
 		t_cuibm = t_cuibm[i_start:i_end].copy()
 		# multiplied by factor 2.0 because forgot in cuIBM
 		cd_cuibm = 2.*cd_cuibm[i_start:i_end].copy()

@@ -158,7 +158,7 @@ def main():
 		i_start = numpy.where(time_steps >= args.start)[0][0]
 		time_steps = time_steps[args.start:]
 	if args.end:
-		i_end = numpy.where(time_steps > args.end)[0][0]
+		i_end = numpy.where(time_steps >= args.end)[0][0]+1
 		time_steps = time_steps[:i_end]
 	if args.times:
 		start, end, every = args.times[0], args.times[1], args.times[2]
@@ -166,6 +166,7 @@ def main():
 	
 	# time-loop to plot and save the vorticity field
 	for time_step in time_steps:
+		print 'Time: %g' % time_step
 		view.ViewTime = time_step
 		text.Text = 'time = %g' % time_step
 		WriteImage('%s/vorticity_%s_%g.png' 
