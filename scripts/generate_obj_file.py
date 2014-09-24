@@ -1,0 +1,72 @@
+#!/usr/bin/env python
+
+# file: $FLYING_SNAKE_OPENFOAM/scripts/generate_obj_file.py
+# author: Olivier Mesnard (mesnardo@gwu.edu)
+# description: generate an .OBJ file readable by SnappyHexMesh
+
+
+import os
+import argparse
+
+import numpy
+
+
+def read_inputs():
+	"""Parses the command-line."""
+	# create the parser
+	parser = argparse.ArgumentParser(description='Generates an .OBJ file '
+									 'that will be readable by OpenFOAM '
+									 'mesh generator: SnappyHexMesh')
+	# fill the parser with arguments
+	parser.add_argument('--infile', dest='infile', type=str, default=None,
+						help='path of the coordinates file to be converted')
+	parser.add_argument('--output', dest='output', type=str, default=None,
+						help='name of the .OBJ file generated (no extension)')
+	return parser.parse_args()
+
+
+def main():
+	"""Generates an .OBJ file from a given coordinates file."""
+	# parse the command-line:
+	args = read_inputs()
+
+	# read the coordinates file
+	infile_path = os.path.normpath(args.infile)
+	print '--> infile path: %s' % infile_path
+	with open(infile_path, 'r') as infile:
+		x, y = numpy.loadtxt(infile, dtype=float, 
+							 delimiter='\t', skiprows=1, unpack=True)
+
+	# append first element to the end of the array
+	tol = 1.0E-06
+	if abs(x[0]-x[-1]) > tol and abs(y[0]-y[-1]) > tol:
+		x, y = numpy.append(x, x[0]), numpy.append(y, y[0])
+
+	# write .OBJ file
+	if not args.output:
+		args.output = os.path.basename(os.path.splitext(infile_path)[0])
+	outfile_path = '%s/%s.obj' % (os.path.dirname(infile_path), args.output)
+	print '--> outfile path: %s' % outfile_path
+
+	header = ( '# Wavefront OBJ file\n'
+			   '# points: %d\n'
+			   '# faces: %d\n'
+			   '# zones: 1\n'
+			   '# Regions: 0 %s\n'
+			   % (2*x.size, 2*x.size, args.output) )
+
+	with open(outfile_path, 'w') as outfile:
+		outfile.write(header)
+		for i in xrange(x.size):
+			for j in xrange(1, -1, -1):
+				outfile.write('v %.6f %.6f %g\n' % (x[i], y[i], j))
+		outfile.write('g %s\n' % args.output)
+		for i in xrange(1, x.size):
+			outfile.write('f %d %d %d\n' % (2*i, 2*i-1, 2*i+1))
+			outfile.write('f %d %d %d\n' % (2*i+1, 2*(i+1), 2*i))
+		outfile.write('f %d %d %d\n' % (2*x.size, 2*x.size-1, 1))
+		outfile.write('f %d %d %d\n' % (1, 2, 2*x.size))
+
+
+if __name__ == '__main__':
+	main()
