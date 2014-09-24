@@ -17,4 +17,4 @@ decomposePar -case $CASE_PATH > $LOG_PATH
 $OPENFOAM_MPIRUN -np 6 icoFoam -case $CASE_PATH -parallel >> $LOG_PATH
 
 # reconstruct the solution
-reconstructPar -case $CASE_PATH >> $LOG_PATH
+reconstructPar -case $CASE_PATH -newTimes >> $LOG_PATH
