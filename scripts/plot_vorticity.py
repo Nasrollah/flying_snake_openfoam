@@ -20,6 +20,8 @@ def read_inputs():
 	# fill the parser with arguments
 	parser.add_argument('--case', dest='case', type=str, default='.',
 						help='path of the OpenFOAM case')
+	parser.add_argument('--variable', '-v', dest='variable', type=str,
+						help='plot specified variable (vorticity or pressure)')
 	parser.add_argument('--vortlim', dest='vort_lim', type=float, default=5.0,
 						help='upper limit of zero-symmetric vorticity range')
 	parser.add_argument('--times', dest='times', type=float, nargs='+',
@@ -107,41 +109,55 @@ def main():
 	view.Background = [0.34, 0.34, 0.34]
 	Render()
 
-	# compute the vorticity
-	compute_derivatives = ComputeDerivatives()
-	compute_derivatives.Scalars = ['POINTS', 'p']
-	compute_derivatives.Vectors = ['POINTS', 'U']
-	compute_derivatives.OutputTensorType = 'Nothing'
-	compute_derivatives.OutputVectorType = 'Vorticity'
-
-	# edit color-map
-	a3_Vorticity_PVLookupTable = GetLookupTableForArray('Vorticity', 3, 
-					RGBPoints=[-args.vort_lim, 0.0, 0.0, 1.0, 
-							   +args.vort_lim, 1.0, 0.0, 0.0], 
-					VectorMode='Component', 
-					VectorComponent=2, 
-					NanColor=[0.0, 0.0, 0.0],
-					ColorSpace='Diverging', 
-					ScalarRangeInitialized=1.0, 
-					LockScalarRange=1)
+	if args.variable == 'vorticity':
+		# compute the vorticity
+		compute_derivatives = ComputeDerivatives()
+		compute_derivatives.Scalars = ['POINTS', 'p']
+		compute_derivatives.Vectors = ['POINTS', 'U']
+		compute_derivatives.OutputTensorType = 'Nothing'
+		compute_derivatives.OutputVectorType = 'Vorticity'
+		
+		# edit color-map
+		PVLookupTable = GetLookupTableForArray('Vorticity', 3, 
+									RGBPoints=[-args.vort_lim, 0.0, 0.0, 1.0, 
+							   			   	   +args.vort_lim, 1.0, 0.0, 0.0], 
+									VectorMode='Component', 
+									VectorComponent=2, 
+									NanColor=[0.0, 0.0, 0.0],
+									ColorSpace='Diverging', 
+									ScalarRangeInitialized=1.0, 
+									LockScalarRange=1)
+	elif args.variable == 'pressure':
+		# edit color-map
+		PVLookupTable = GetLookupTableForArray('p', 1,
+											   RGBPoints=[-1.0, 0.0, 0.0, 1.0,
+														  +0.5, 1.0, 0.0, 0.0],
+											   VectorMode='Magnitude',
+											   NanColor=[0.0, 0.0, 0.0],
+											   ColorSpace='HSV',
+											   ScalarRangeInitialized=1.0,
+											   LockScalarRange=1)
 
 	# add a scalar bar
-	scalar_bar_widget_representation = CreateScalarBar(ComponentTitle='', 
-										Title='vorticity', 
-										Position2=[0.1, 0.5], 
-										Enabled=1, 
-										LabelFontSize=12, 
-										LabelColor=[0.0, 0.0, 0.0],
-										LookupTable=a3_Vorticity_PVLookupTable,
-										TitleFontSize=12, 
-										TitleColor=[0.0, 0.0, 0.0], 
-										Position=[0.02, 0.25])
-	view.Representations.append(scalar_bar_widget_representation)
-
-	# show the vorticity field
+	scalar_bar = CreateScalarBar(ComponentTitle='', 
+								 Title=args.variable, 
+								 Position2=[0.1, 0.5], 
+								 Enabled=1, 
+								 LabelFontSize=12, 
+								 LabelColor=[0.0, 0.0, 0.0],
+								 LookupTable=PVLookupTable,
+								 TitleFontSize=12, 
+								 TitleColor=[0.0, 0.0, 0.0], 
+								 Position=[0.02, 0.25])
+	view.Representations.append(scalar_bar)
+	# show the  field
 	data_representation = Show()
-	data_representation.ColorArrayName = 'Vorticity'
-	data_representation.LookupTable = a3_Vorticity_PVLookupTable
+	if args.variable == 'vorticity':
+		array_name = 'Vorticity'
+	elif args.variable == 'pressure':
+		array_name = 'p'
+	data_representation.ColorArrayName = array_name
+	data_representation.LookupTable = PVLookupTable
 	data_representation.ColorAttributeType = 'CELL_DATA'
 
 	# add text to the view
@@ -169,8 +185,8 @@ def main():
 		print 'Time: %g' % time_step
 		view.ViewTime = time_step
 		text.Text = 'time = %g' % time_step
-		WriteImage('%s/vorticity_%s_%g.png' 
-				   % (images_path, args.view, time_step))
+		WriteImage('%s/%s_%s_%07g.png' 
+				   % (images_path, args.variable,  args.view, time_step))
 
 
 if __name__ == '__main__':
