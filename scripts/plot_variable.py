@@ -93,7 +93,9 @@ def main():
 		x_bl, y_bl, x_tr, y_tr, width = get_view(view=args.view)
 
 	x_center, y_center = 0.5*(x_tr+x_bl), 0.5*(y_tr+y_bl)
-	h = 0.5*(y_tr-y_bl) + 1.
+	coeff = 20./10.
+	coeff = 1.
+	h = 0.5*(y_tr-y_bl) + coeff
 	height = width*(y_tr-y_bl)/(x_tr-x_bl)
 
 	view = GetRenderView()
