@@ -33,6 +33,9 @@ def read_inputs():
 	parser.add_argument('--output', '-o', dest='output', type=str, 
 						default='force_coefficients',
 						help='name of the file generated')
+	parser.add_argument('--no-save', dest='save', action='store_false',
+						help='does not save the figure')
+	parser.set_defaults(save=True)
 	return parser.parse_args()
 
 
@@ -75,11 +78,6 @@ def main():
 	print '\t--> mean drag coefficient: %g' % cd_mean
 	print '\t--> mean lift coefficient: %g' % cl_mean
 
-	# create images folder is not existing
-	images_path = '%s/images' % args.case
-	if not os.path.isdir(images_path):
-		os.makedirs(images_path)
-
 	# plot instantaneous force coefficients
 	plt.figure()
 	plt.grid(True)
@@ -117,7 +115,14 @@ def main():
 		plt.plot(t_cuibm, cl_cuibm, label=r'$C_l$ - cuIBM', color='b', ls='--')
 
 	plt.legend(loc='best', prop={'size': 16})
-	plt.savefig('%s/%s.png' % (images_path, args.output))
+	
+	if args.save:
+		# create images folder is not existing
+		images_path = '%s/images' % args.case
+		if not os.path.isdir(images_path):
+			os.makedirs(images_path)
+		plt.savefig('%s/%s.png' % (images_path, args.output))
+	
 	if args.show:
 		plt.show()
 
