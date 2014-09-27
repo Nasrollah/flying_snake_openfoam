@@ -1,2 +1,5 @@
 # ignore cases
 cases/*
+
+# ignore validation cases
+validation/*
