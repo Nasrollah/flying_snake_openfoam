@@ -97,7 +97,7 @@ def main():
 		images_path = '%s/images' % args.case_directory
 		if not os.path.isdir(images_path):
 			os.makedirs(images_path)
-		pyplot.savefig('%s/%s.png' % (args.images_path, args.output))
+		pyplot.savefig('%s/%s.png' % (images_path, args.output))
 
 	if args.show:
 		pyplot.show()
