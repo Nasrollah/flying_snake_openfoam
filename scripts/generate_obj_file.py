@@ -27,7 +27,7 @@ def read_inputs():
 
 def main():
 	"""Generates an .OBJ file from a given coordinates file."""
-	# parse the command-line:
+	# parse the command-line
 	args = read_inputs()
 
 	# read the coordinates file
