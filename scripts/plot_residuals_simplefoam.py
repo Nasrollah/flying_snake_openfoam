@@ -51,18 +51,21 @@ def main():
 
 	# store the residuals
 	residuals_directory = '%s/logs' % args.case_directory
-	ites_u, residuals_u = get_residuals('%s/Ux_0' % residuals_direcotry)
-	ites_v, residuals_v = get_residuals('%s/Uy_0' % residuals_direcotry)
-	ites_p, residuals_p = get_residuals('%s/p_0' % residuals_direcotry)
+	ites_u, residuals_u = get_residuals('%s/Ux_0' % residuals_directory)
+	ites_v, residuals_v = get_residuals('%s/Uy_0' % residuals_directory)
+	ites_p, residuals_p = get_residuals('%s/p_0' % residuals_directory)
 
 	# create the figure
 	pyplot.figure(figsize=(8, 8))
 	pyplot.grid(True)
-	pyplot.xlabel('iteration number', fontisze=16)
-	pyplot.ylabel('reisudals', fontsize=16)
-	pyplot.plot(ites_p, residuals_p, label=r'$p$', color='r', ls='-', lw=2)
-	pyplot.plot(ites_u, residuals_u, label=r'$U_x$', color='b', ls='-', lw=2)
-	pyplot.plot(ites_v, residuals_v, label=r'$U_y$', color='g', ls='-', lw=2)
+	pyplot.xlabel('iteration number', fontsize=16)
+	pyplot.ylabel('residuals', fontsize=16)
+	pyplot.semilogy(ites_p, residuals_p, label=r'$p$', 
+					color='r', ls='-', lw=2)
+	pyplot.semilogy(ites_u, residuals_u, label=r'$U_x$', 
+					color='b', ls='-', lw=2)
+	pyplot.semilogy(ites_v, residuals_v, label=r'$U_y$', 
+					color='g', ls='-', lw=2)
 	pyplot.legend(loc='best', prop={'size': 18})
 
 	# save the figure
