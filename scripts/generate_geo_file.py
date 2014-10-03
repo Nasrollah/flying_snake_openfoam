@@ -1,0 +1,145 @@
+#!/usr/bin/env python
+
+# file: $FLYING_SNAKE_OPENFOAM/scripts/generate_geo_file.py
+# author: Olivier Mesnard (mesnardo@gwu.edu)
+# description: Generate .geo file to be read by GMSH
+
+
+import argparse
+
+import numpy
+
+
+def read_inputs():
+	"""Parses the command-line."""
+	# create the parser
+	parser = argparse.ArgumentParser(description='Generate a .geo file')
+	# fill the parser with arguments
+	parser.add_argument('--coordinates', dest='coordinates_path', type=str,
+						help='path of the coordinates file')
+	parser.add_argument('--geo-name', dest='geo_name', type=str, 
+						default='file_for_gmsh',
+						help='name of the .geo file (without extension)')
+	parser.add_argument('--bottom-left', '-bl', dest='bl', type=float,
+						nargs='+', default=[-20.0, -20.0],
+						help='coordinates of the bottom-left corner of the '
+							 'computational domain')
+	parser.add_argument('--top-right', '-tr', dest='tr', type=float,
+						nargs='+', default=[20.0, 20.0],
+						help='coordinates of the top-right corner of the '
+							 'computational domain')
+	parser.add_argument('--n-exterior', dest='n_exterior', type=int, default=20,
+						help='number of points on each external boundaries '
+							 '(inlet, outlet, bottom and top)')
+	parser.add_argument('--n-segment', dest='n_segment', type=int, default=2,
+						help='number of points on each segment of the geometry')
+	return parser.parse_args()
+
+
+def main():
+	"""Generates a .geo file that will be read by GMSH to generate the mesh."""
+	# parse the command-line
+	args = read_inputs()
+
+	# read the coordinates file
+	with open(args.coordinates_path, 'r') as infile:
+		x, y = numpy.loadtxt(infile, dtype=float, delimiter='\t', skiprows=1, 
+							 unpack=True)
+	n = x.size	# number of points on the geometry
+
+	print '\ninput\n-----'
+	print 'coordinates path: %s' % args.coordinates_path
+	print 'number of points: %d' % n
+
+	# compute length of each body-segments
+	lengths = numpy.sqrt((x[:-1]-x[1:])**2+(y[:-1]-y[1:])**2)
+
+	print 'minimum segment-length: %g' % lengths.min()
+	print 'maximum segment-length: %g' % lengths.max()
+	print 'average segment-length: %g' % (lengths.sum()/lengths.size)
+
+	# calculate the characteristic lengths
+	cl_exterior = (args.tr[0]-args.bl[0])/args.n_exterior
+	cl_segment = lengths.max()/args.n_segment
+
+	print '\ncharacteristic lengths\n----------------------'
+	print 'external boundaries: %g' % cl_exterior
+	print 'geometry (maximum): %g' % cl_segment
+
+	# write .geo file
+	with open('%s.geo' % args.geo_name, 'w') as outfile:
+		# write geometry points
+		for i in xrange(n):
+			outfile.write('Point(%d) = {%f, %f, 0.0, %f};\n' 
+						  % (i+1, x[i], y[i], cl_segment))
+		outfile.write('\n')
+		# write geometry lines
+		for i in xrange(n-1):
+			outfile.write('Line(%d) = {%d, %d};\n' % (i+1, i+1, i+2))
+		outfile.write('Line(%d) = {%d, %d};\n\n' % (n, n, 1))
+
+		# write domain points
+		outfile.write('Point(%d) = {%f, %f, 0.0, %f};\n' 
+					  % (n+1, args.bl[0], args.bl[1], cl_exterior))
+		outfile.write('Point(%d) = {%f, %f, 0.0, %f};\n' 
+					  % (n+2, args.tr[0], args.bl[1], cl_exterior))
+		outfile.write('Point(%d) = {%f, %f, 0.0, %f};\n' 
+					  % (n+3, args.tr[0], args.tr[1], cl_exterior))
+		outfile.write('Point(%d) = {%f, %f, 0.0, %f};\n\n' 
+					  % (n+4, args.bl[0], args.tr[1], cl_exterior))
+
+		# write domain lines
+		outfile.write('Line(%d) = {%d, %d};\n' % (n+1, n+1, n+2))
+		outfile.write('Line(%d) = {%d, %d};\n' % (n+2, n+2, n+3))
+		outfile.write('Line(%d) = {%d, %d};\n' % (n+3, n+3, n+4))
+		outfile.write('Line(%d) = {%d, %d};\n' % (n+4, n+4, n+1))
+		outfile.write('\n')
+
+		# write geometry loop
+		outfile.write('Line Loop(1) = {%s};\n\n' 
+					  % ', '.join(['%s' % str(i+1) for i in xrange(n)]))
+		
+		# write domain loop
+		outfile.write('Line Loop(2) = {%s};\n\n' 
+					  % ', '.join(['%s' % str(n+i) for i in [1, 2, 3, 4]]))
+
+		# write plane surface
+		outfile.write('Plane Surface(1) = {1, 2};\n\n')
+
+		# write physical volume and surfaces
+		outfile.write('Physical Volume("internal") = {1};\n')
+		outfile.write('Physical Surface("inlet") = {1771};\n')
+		outfile.write('Physical Surface("outlet") = {1779};\n')
+		outfile.write('Physical Surface("bottom") = {1783};\n')
+		outfile.write('Physical Surface("top") = {1775};\n')
+		outfile.write('Physical Surface("front") = {1784};\n')
+		outfile.write('Physical Surface("back") = {1};\n')
+		outfile.write('Physical Surface("snake") = {%s};\n\n' 
+					  % ', '.join(['%s' % str(i) 
+					  			   for i in numpy.arange(599, 1767+4, 4)]))
+
+		# create a field box
+		box_bl_x, box_bl_y = -2.0, -2.0
+		box_tr_x, box_tr_y = +2.0, +2.0
+		outfile.write('Field[1] = Box;\n')
+		outfile.write('Field[1].VIn = %f;\n' % cl_segment)
+		outfile.write('Field[1].VOut = %f;\n' % cl_exterior)
+		outfile.write('Field[1].XMin = %f;\n' % box_bl_x)
+		outfile.write('Field[1].XMax = %f;\n' % box_tr_x)
+		outfile.write('Field[1].YMin = %f;\n' % box_bl_y)
+		outfile.write('Field[1].YMax = %f;\n' % box_tr_y)
+		outfile.write('Background Field = 1;\n\n')
+
+		# recombine and extrude to get a 3D mesh with 1 cell in 3rd-direction
+		outfile.write('Recombine Surface{1} = 0;\n')
+		outfile.write('Mesh.Algorithm = 8;\n\n')
+		outfile.write('Extrude {0, 0, 1} {'
+					  '\nSurface{1};\nLayers{1};\nRecombine;\n'
+					  '}\n\n')
+
+		outfile.write('Mesh.Smoothing = 100;\n\n')
+		outfile.write('General.ExpertMode = 1;')
+
+
+if __name__ == '__main__':
+	main()
