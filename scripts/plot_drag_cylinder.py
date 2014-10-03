@@ -92,13 +92,15 @@ def main():
 	pyplot.ylim(0.5, 2.0)
 	pyplot.legend(loc='best', prop={'size': 14})
 
+	# save the figure
 	if args.save:
-		# create images folder is not existing
-		images_path = '%s/images' % args.case_directory
-		if not os.path.isdir(images_path):
-			os.makedirs(images_path)
-		pyplot.savefig('%s/%s.png' % (images_path, args.output))
+		# create images folder if not existing
+		images_directory = '%s/images' % args.case_directory
+		if not os.path.isdir(images_directory):
+			os.makedirs(images_directory)
+		pyplot.savefig('%s/%s.png' % (images_directory, args.output))
 
+	# display the figure
 	if args.show:
 		pyplot.show()
 
