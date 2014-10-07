@@ -3,3 +3,6 @@ cases/*
 
 # ignore validation cases
 validation/*
+
+# ignore test folder
+test/*
