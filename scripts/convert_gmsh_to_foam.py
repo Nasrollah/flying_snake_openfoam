@@ -2,7 +2,7 @@
 
 # file: $FLYING_SNAKE_OPENFOAM/scripts/gmsh_to_foam.py
 # author: Olivier Mesnard (mesnardo@gwu.edu)
-# description: change the boundary patches in folder constant/polyMesh
+# description: Change the boundary patches in folder constant/polyMesh
 
 
 import os
@@ -17,13 +17,13 @@ def read_inputs():
 									 'of the OpenFOAM case',
 						formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	# fill the parser with arguments
-	parser.add_argument('--case', dest='case_dir', type=str,
+	parser.add_argument('--case', dest='case_directory', type=str, default='.',
 						help='directory of the OpenFOAM case')
-	parser.add_argument('--mesh', dest='mesh_path', type=str,
-						help='path of the GMSH file')
+	parser.add_argument('--mesh', dest='mesh_path', type=str, default='./*.msh',
+						help='path of the GMSH .msh file')
 	parser.add_argument('--body-name', dest='body_name', type=str, 
 						default='cylinder',
-						help='name of the body patch in OpenFOAM')
+						help='name of the body patch used in OpenFOAM')
 	return parser.parse_args()
 
 
@@ -35,14 +35,14 @@ def main():
 	args = read_inputs()
 
 	# log file
-	log_path = '%s/mesh.log' % args.case_dir
+	log_path = '%s/mesh.log' % args.case_directory
 
 	# run OpenFOAM utility gmshToFoam
 	os.system('gmshToFoam -case %s %s > %s' 
-			  % (args.case_dir, args.mesh_path, log_path))
+			  % (args.case_directory, args.mesh_path, log_path))
 
 	# path of the file containing the patch names
-	boundary_path = '%s/constant/polyMesh/boundary' % args.case_dir
+	boundary_path = '%s/constant/polyMesh/boundary' % args.case_directory
 
 	# read the current boundary file
 	with open(boundary_path, 'r') as infile:
@@ -67,7 +67,7 @@ def main():
 		outfile.write(''.join(lines))
 
 	# check the quality of the mesh
-	os.system('checkMesh -case %s >> %s' % (args.case_dir, log_path))
+	os.system('checkMesh -case %s >> %s' % (args.case_directory, log_path))
 
 
 if __name__ == '__main__':

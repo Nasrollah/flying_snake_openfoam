@@ -2,7 +2,7 @@
 
 # file: $FLYING_SNAKE_OPENFOAM/scripts/plot_vorticity.py
 # author: Olivier Mesnard (mesnardo@gwu.edu)
-# description: macro to run ParaView and plot the vorticity
+# description: Macro to run ParaView and plot the vorticity in batch mode
 
 
 import argparse
@@ -16,12 +16,13 @@ def read_inputs():
 	"""Parses the command-line."""
 	# create the parser
 	parser = argparse.ArgumentParser(description='Plots the vorticity field '
-												 'with ParaFOAM')
+												 'with ParaFOAM',
+						formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	# fill the parser with arguments
-	parser.add_argument('--case', dest='case', type=str, default='.',
-						help='path of the OpenFOAM case')
+	parser.add_argument('--case', dest='case_directory', type=str, default='.',
+						help='directory of the OpenFOAM case')
 	parser.add_argument('--variable', '-v', dest='variable', type=str,
-						help='plot specified variable (vorticity or pressure)')
+						help='variable (vorticity or pressure) to plot')
 	parser.add_argument('--vortlim', dest='vort_lim', type=float, default=5.0,
 						help='upper limit of zero-symmetric vorticity range')
 	parser.add_argument('--times', dest='times', type=float, nargs='+',
@@ -44,7 +45,7 @@ def read_inputs():
 	return parser.parse_args()
 
 
-def get_view(view='snake'):
+def get_view(view='wake'):
 	"""Returns the limits and the width of the plot.
 	
 	Arguments
@@ -72,14 +73,16 @@ def main():
 	args = read_inputs()
 
 	# create images folder if does not exist
-	images_path = '%s/images' % args.case
+	images_path = '%s/images' % args.case_directory
 	if not os.path.isdir(images_path):
 		os.makedirs(images_path)
 
-
 	# display front patch and read pressure and velocity
-	of_file_name = '%s.OpenFOAM' % os.path.basename(os.path.normpath(args.case))
-	flying_snake = PV3FoamReader(FileName=('%s/%s' % (args.case, of_file_name)))
+	of_file_name = '%s.OpenFOAM' 
+				   % os.path.basename(os.path.normpath(args.case_directory))
+	flying_snake = PV3FoamReader(FileName=('%s/%s' 
+										   % (args.case_directory, 
+										   	  of_file_name)))
 	flying_snake.VolumeFields = ['p', 'U']
 	flying_snake.MeshParts = ['front - patch']
 
@@ -91,13 +94,14 @@ def main():
 		args.view = 'custom'
 	else:
 		x_bl, y_bl, x_tr, y_tr, width = get_view(view=args.view)
-
 	x_center, y_center = 0.5*(x_tr+x_bl), 0.5*(y_tr+y_bl)
+	# coeff value below needs to be fully understood
 	coeff = 20./10.
 	#coeff = 1.
 	h = 0.5*(y_tr-y_bl) + coeff
 	height = width*(y_tr-y_bl)/(x_tr-x_bl)
 
+	# set up the view
 	view = GetRenderView()
 	view.ViewSize = [width, height]
 	Render()

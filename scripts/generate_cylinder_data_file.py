@@ -2,7 +2,7 @@
 
 # file: $FLYING_SNAKE_OPENFOAM/scripts/generate_cylinder.py
 # author: Olivier Mesnard (mesnardo@gwu.edu)
-# description: Generate cylinder coordinates in a data file
+# description: Generate cylinder coordinates and write in a data file
 
 
 import os
@@ -17,7 +17,8 @@ def read_inputs():
 	"""Parses the command-line."""
 	# create the parser
 	parser = argparse.ArgumentParser(description='Generates a data file '
-									 'eith 2D-cylinder coordinates')
+									 'eith 2D-cylinder coordinates',
+						formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	# fill the parser with arguments
 	parser.add_argument('-n', dest='n', type=int, default=100,
 						help='number of points on the cylinder')
@@ -30,7 +31,7 @@ def read_inputs():
 						default='.',
 						help='directory where the file will be saved')
 	parser.add_argument('--show', dest='show', action='store_true',
-						help='plot and display the cylinder in a figure')
+						help='plots and displays the cylinder in a figure')
 	return parser.parse_args()
 
 

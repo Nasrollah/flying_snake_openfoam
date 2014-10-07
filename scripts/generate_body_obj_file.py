@@ -16,11 +16,12 @@ def read_inputs():
 	# create the parser
 	parser = argparse.ArgumentParser(description='Generates an .OBJ file '
 									 'that will be readable by OpenFOAM '
-									 'mesh generator: SnappyHexMesh')
+									 'mesh generator: SnappyHexMesh',
+						formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	# fill the parser with arguments
-	parser.add_argument('--infile', dest='infile', type=str, default=None,
+	parser.add_argument('--infile', dest='infile_path', type=str,
 						help='path of the coordinates file to be converted')
-	parser.add_argument('--output', dest='output', type=str, default=None,
+	parser.add_argument('--output', dest='output_name', type=str,
 						help='name of the .OBJ file generated (no extension)')
 	return parser.parse_args()
 
@@ -31,9 +32,8 @@ def main():
 	args = read_inputs()
 
 	# read the coordinates file
-	infile_path = os.path.normpath(args.infile)
-	print '--> infile path: %s' % infile_path
-	with open(infile_path, 'r') as infile:
+	print '--> infile path: %s' % args.infile_path
+	with open(args.infile_path, 'r') as infile:
 		x, y = numpy.loadtxt(infile, dtype=float, 
 							 delimiter='\t', skiprows=1, unpack=True)
 
@@ -44,17 +44,16 @@ def main():
 
 	# write .OBJ file
 	if not args.output:
-		args.output = os.path.basename(os.path.splitext(infile_path)[0])
-	outfile_path = '%s/%s.obj' % (os.path.dirname(infile_path), args.output)
+		args.output = os.path.basename(os.path.splitext(args.infile_path)[0])
+	outfile_path = '%s/%s.obj' % (os.path.dirname(args.infile_path), 
+								  args.output)
 	print '--> outfile path: %s' % outfile_path
-
 	header = ( '# Wavefront OBJ file\n'
 			   '# points: %d\n'
 			   '# faces: %d\n'
 			   '# zones: 1\n'
 			   '# Regions: 0 %s\n'
 			   % (2*x.size, 2*x.size, args.output) )
-
 	with open(outfile_path, 'w') as outfile:
 		outfile.write(header)
 		for i in xrange(x.size):

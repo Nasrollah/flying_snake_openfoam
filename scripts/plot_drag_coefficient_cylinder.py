@@ -18,27 +18,28 @@ def read_inputs():
 	# create the parser
 	parser = argparse.ArgumentParser(description='Plot drag coefficient over a '
 									 'cylinder and compare with results from '
-									 'Koumoutsakos and Leonard (1995)')
+									 'Koumoutsakos and Leonard (1995)',
+						formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	# fill parser with arguments
 	parser.add_argument('--case', dest='case_directory', type=str,
-						help='directory of the simulation')
+						help='directory of the simulation case')
 	parser.add_argument('--start', dest='start', type=float, default=0.0,
 						help='starting-time')
 	parser.add_argument('--end', dest='end', type=float, default=3.5,
 						help='ending-time')
 	parser.add_argument('--show', dest='show', action='store_true',
-						help='display the figure')
+						help='displays the figure')
 	parser.add_argument('--no-save', dest='save', action='store_false',
-						help='do not save the figure')
+						help='does not save the figure')
 	parser.add_argument('--compare', dest='compare', type=str,
 						default='/home/mesnardo/flying_snake_openfoam/resources'
 								'/cylinder_drag_coefficient_Re550_'
 								'koumoutsakos_leonard_1995.dat',
 						help='path of results from '
 							 'Koumoutsakos and Leonard (1995)')
-	parser.add_argument('--output', dest='output', type=str, 
+	parser.add_argument('--output', dest='output_name', type=str, 
 						default='drag_coefficients',
-						help='name of the output PNG file')
+						help='name of the output .png file')
 	parser.set_defaults(save=True)
 	return parser.parse_args()
 
@@ -98,7 +99,7 @@ def main():
 		images_directory = '%s/images' % args.case_directory
 		if not os.path.isdir(images_directory):
 			os.makedirs(images_directory)
-		pyplot.savefig('%s/%s.png' % (images_directory, args.output))
+		pyplot.savefig('%s/%s.png' % (images_directory, args.output_name))
 
 	# display the figure
 	if args.show:

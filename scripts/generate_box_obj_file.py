@@ -43,7 +43,8 @@ def read_inputs():
 	# create the parser
 	parser = argparse.ArgumentParser(description='Generates a 2D triangulated '
 												 'box and writes into a '
-												 'Wavefront OBJ file')
+												 'Wavefront OBJ file',
+						formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	# fill the parser with arguments
 	parser.add_argument('--bottom-left', '-bl', dest='bl', type=float, 
 						nargs='+', default=[-2.0, -2.0],
@@ -55,8 +56,7 @@ def read_inputs():
 						help='z-coordinate of the box')
 	parser.add_argument('-n', dest='n', type=int, nargs='+', default=[100, 100],
 						help='number of points in the x- and y- directions')
-	parser.add_argument('--output', dest='output_name', type=str, 
-						default='box',
+	parser.add_argument('--output', dest='output_name', type=str, default='box',
 						help='name of the OBJ file without the extension')
 	return parser.parse_args()
 
