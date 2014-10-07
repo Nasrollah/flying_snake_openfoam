@@ -20,6 +20,9 @@ def read_inputs():
 						help='path of the OpenFOAM case')
 	parser.add_argument('--mesh', dest='mesh', type=str, default=None,
 						help='path of the GMSH file')
+	parser.add_argument('--body-name', dest='body_name', type=str, 
+						default='cylinder',
+						help='name of the body patch in OpenFOAM')
 	return parser.parse_args()
 
 
@@ -58,7 +61,7 @@ def main():
 			lines[i+3] = lines[i+3].replace('patch', 'inlet')
 		elif 'outlet' in line:
 			lines[i+3] = lines[i+3].replace('patch', 'outlet')
-		elif 'snake' in line:
+		elif args.body_name in line:
 			lines[i+2] = lines[i+2].replace('patch', 'wall')
 			lines[i+3] = lines[i+3].replace('patch', 'wall')
 			
