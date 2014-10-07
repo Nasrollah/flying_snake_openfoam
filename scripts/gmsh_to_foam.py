@@ -2,7 +2,7 @@
 
 # file: $FLYING_SNAKE_OPENFOAM/scripts/gmsh_to_foam.py
 # author: Olivier Mesnard (mesnardo@gwu.edu)
-# description: change the boundary patches in folder constant/polyMesh
+# description: Change the boundary patches in folder constant/polyMesh
 
 
 import os
@@ -23,7 +23,7 @@ def read_inputs():
 						help='path of the GMSH file')
 	parser.add_argument('--body-name', dest='body_name', type=str, 
 						default='cylinder',
-						help='name of the body patch in OpenFOAM')
+						help='name of the body patch used in OpenFOAM')
 	return parser.parse_args()
 
 
