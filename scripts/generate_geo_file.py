@@ -212,7 +212,8 @@ class Counter:
 def read_inputs():
 	"""Parses the command-line."""
 	# create the parser
-	parser = argparse.ArgumentParser(description='Generate a .geo file')
+	parser = argparse.ArgumentParser(description='Generate a .geo file',
+						formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	# fill the parser with arguments
 	parser.add_argument('--coordinates', dest='coordinates_path', type=str,
 						help='path of the coordinates file')
