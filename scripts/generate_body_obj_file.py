@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# file: $FLYING_SNAKE_OPENFOAM/scripts/generate_obj_file.py
+# file: $FLYING_SNAKE_OPENFOAM/scripts/generate_body_obj_file.py
 # author: Olivier Mesnard (mesnardo@gwu.edu)
 # description: generate an .OBJ file readable by SnappyHexMesh
 

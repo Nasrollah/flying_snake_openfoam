@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# file: $FLYING_SNAKE_OPENFOAM/scripts/generate_cylinder.py
+# file: $FLYING_SNAKE_OPENFOAM/scripts/generate_cylinder_data_file.py
 # author: Olivier Mesnard (mesnardo@gwu.edu)
 # description: Generate cylinder coordinates and write in a data file
 

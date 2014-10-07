@@ -1,8 +1,8 @@
 #!/opt/OpenFOAM/ThirdParty-2.2.2/platforms/linux64Gcc/paraview-3.12.0/bin/pvbatch
 
-# file: $FLYING_SNAKE_OPENFOAM/scripts/plot_vorticity.py
+# file: $FLYING_SNAKE_OPENFOAM/scripts/plot_variable.py
 # author: Olivier Mesnard (mesnardo@gwu.edu)
-# description: Macro to run ParaView and plot the vorticity in batch mode
+# description: Macro to run ParaView and plot variable in batch mode
 
 
 import argparse

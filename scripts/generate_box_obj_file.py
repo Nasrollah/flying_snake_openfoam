@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# file: $FLYING_SNAKE_OPENFOAM/scripts/generate_box_obj.py
+# file: $FLYING_SNAKE_OPENFOAM/scripts/generate_box_obj_file.py
 # author: Olivier Mesnard (mesnardo@gwu.edu)
 # description: Generate a triangulated 2D box and export as .OBJ file
 
@@ -58,6 +58,9 @@ def read_inputs():
 						help='number of points in the x- and y- directions')
 	parser.add_argument('--output', dest='output_name', type=str, default='box',
 						help='name of the OBJ file without the extension')
+	parser.add_argument('--save-dir', dest='save_directory', type=str, 
+						default='.',
+						help='directory where to save the .obj file')
 	return parser.parse_args()
 
 
@@ -106,7 +109,8 @@ def main():
 			   '# zones: 1\n'
 			   '# regions: 0 %s\n'
 			   % (nx*ny, 2*(nx-1)*(ny-1), args.output_name))
-	with open('%s.obj' % args.output_name, 'w') as outfile:
+	obj_path = '%s/%s.obj' % (args.save_directory, args.output_name)
+	with open(obj_path, 'w') as outfile:
 		outfile.write(header)
 		for vertex in vertices:
 			outfile.write('v %.6f %.6f %.6f\n' % (vertex.x, vertex.y, args.z))
