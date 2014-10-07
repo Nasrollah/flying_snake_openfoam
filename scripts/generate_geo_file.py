@@ -218,11 +218,13 @@ def read_inputs():
 	parser.add_argument('--coordinates', dest='coordinates_path', type=str,
 						help='path of the coordinates file')
 	parser.add_argument('--geo-name', dest='geo_name', type=str, 
-						default='file_for_gmsh',
+						default='cylinder',
 						help='name of the .geo file (without extension)')
 	parser.add_argument('--body-name', dest='body_name', type=str,
 						default='cylinder',
 						help='name of the body to be used in OpenFOAM')
+	parser.add_argument('--save-dir', dest='save_dir', type=str, default='.',
+						help='directory where to save .geo file')
 	parser.add_argument('--bottom-left', '-bl', dest='bl', type=float,
 						nargs='+', default=[-20.0, -20.0],
 						help='coordinates of the bottom-left corner of the '
@@ -292,7 +294,7 @@ def main():
 			   			  domain.front['line-loop'].index]}
 
 
-	with open('%s.geo' % args.geo_name, 'w') as outfile:
+	with open('%s/%s.geo' % (args.save_dir, args.geo_name), 'w') as outfile:
 		# write characteristic lengths
 		outfile.write('// characteristic lengths\n')
 		outfile.write('cl__1 = %f;\n' % cl_segment)
