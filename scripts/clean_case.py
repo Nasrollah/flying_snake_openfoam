@@ -2,7 +2,7 @@
 
 # file $FLYING_SNAKE_OPENFOAM/scripts/clean_case.py
 # author: Olivier Mesnard (mesnardo@gwu.edu)
-# description: script to clean an OpenFOAM simulation folder
+# description: Clean an OpenFOAM simulation folder
 
 
 import argparse
@@ -13,10 +13,11 @@ def read_inputs():
 	"""Parses the command-line."""
 	# create the parser
 	parser = argparse.ArgumentParser(description='Cleans an OpenFOAM '
-												 'simulation folder')
+												 'simulation folder',
+						formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	# fill the parser with arguments
-	parser.add_argument('--case', dest='case', type=str, default='.',
-						help='path of the OpenFOAM case')
+	parser.add_argument('--case', dest='case_dir', type=str,
+						help='directory of the OpenFOAM case')
 	parser.add_argument('--no-images', dest='images', action='store_false',
 						help='does not remove the images folder')
 	parser.add_argument('--no-processors', dest='processors', 
@@ -27,12 +28,11 @@ def read_inputs():
 						help='does not remove solution folders')
 	parser.add_argument('--no-logs', dest='logs', action='store_false',
 						help='does not remove log files')
-	parser.add_argument('--no-of_files', dest='of_files', action='store_false',
-						help='does not remove .OpenFOAM files')
-	parser.add_argument('--no-forces', dest='forces', action='store_false',
-						help='does not remove forces data')
+	parser.add_argument('--no-post-processing', dest='post_processing', 
+						action='store_false',
+						help='does not remove the post-processing folder')
 	parser.set_defaults(images=True, processors=True, solutions=True, logs=True,
-						of_files=True, forces=True)
+						post_processing=True)
 	return parser.parse_args()
 
 
@@ -44,20 +44,18 @@ def main():
 	# store different paths into a dictionary if no flag
 	parts = {}
 	if args.images:
-		parts['images'] = '%s/images/' % args.case
+		parts['images'] = '%s/images' % args.case_dir
 	if args.processors:
-		parts['processors'] = '%s/processor*/' % args.case
-	if args.of_files:
-		parts['of_files'] = '%s/*.OpenFOAM' % args.case
+		parts['processors'] = '%s/processor*' % args.case_dir
 	if args.solutions:
-		parts['solutions'] = '%s/[1-9]*' % args.case
+		parts['solutions'] = '%s/[1-9]* %s/0.*' % args.case_dir
 	if args.logs:
-		parts['logs'] = '%s/*log*' % args.case
-	if args.forces:
-		parts['forces'] = '%s/postProcessing' % args.case
+		parts['logs'] = '%s/*log*' % args.case_dir
+	if args.post_processing:
+		parts['post-processing'] = '%s/postProcessing' % args.case_dir
 
-	print 'case: %s' % args.case
 	# remove paths that are in the dictionary
+	print 'case directory: %s' % args.case_dir
 	for key, part in parts.iteritems():
 		print '\t--> deleting %s ...' % key
 		os.system('rm -rf %s' % part)
