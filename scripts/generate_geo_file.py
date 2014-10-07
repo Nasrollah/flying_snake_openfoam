@@ -219,6 +219,9 @@ def read_inputs():
 	parser.add_argument('--geo-name', dest='geo_name', type=str, 
 						default='file_for_gmsh',
 						help='name of the .geo file (without extension)')
+	parser.add_argument('--body-name', dest='body_name', type=str,
+						default='cylinder',
+						help='name of the body to be used in OpenFOAM')
 	parser.add_argument('--bottom-left', '-bl', dest='bl', type=float,
 						nargs='+', default=[-20.0, -20.0],
 						help='coordinates of the bottom-left corner of the '
@@ -413,8 +416,9 @@ def main():
 					  % physical_surfaces['external'][0])
 		outfile.write('Physical Surface("top") = {%d};\n'
 					  % physical_surfaces['external'][2])
-		outfile.write('Physical Surface("body") = {%s};\n'
-					  % ', '.join([str(i) for i in physical_surfaces['body']]))
+		outfile.write('Physical Surface("%s") = {%s};\n'
+					  % (', '.join([str(i) for i in physical_surfaces['body']]),
+					  	 args.body_name))
 		outfile.write('Physical Volume("internal") = {%d};\n' 
 					  % counter.n_volumes)
 		
