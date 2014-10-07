@@ -420,8 +420,8 @@ def main():
 		outfile.write('Physical Surface("top") = {%d};\n'
 					  % physical_surfaces['external'][2])
 		outfile.write('Physical Surface("%s") = {%s};\n'
-					  % (', '.join([str(i) for i in physical_surfaces['body']]),
-					  	 args.body_name))
+					  % (args.body_name, 
+						', '.join([str(i) for i in physical_surfaces['body']])))
 		outfile.write('Physical Volume("internal") = {%d};\n' 
 					  % counter.n_volumes)
 		
