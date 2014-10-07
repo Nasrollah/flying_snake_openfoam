@@ -15,14 +15,15 @@ def read_inputs():
 	"""Parses the command-line."""
 	# create the parser
 	parser = argparse.ArgumentParser(description='Plot the residuals from '
-												 'a simpleFoam simulation')
+												 'a simpleFoam simulation',
+						formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	# fill the parser with arguments
 	parser.add_argument('--case', dest='case_directory', type=str,
 						help='directory of the simpleFoam simulation')
 	parser.add_argument('--show', dest='show', action='store_true',
-						help='display the figure')
+						help='displays the figure')
 	parser.add_argument('--no-save', dest='save', action='store_false',
-						help='do not save the figure')
+						help='does not save the figure')
 	parser.set_defaults(save=True)
 	return parser.parse_args()
 
@@ -32,7 +33,7 @@ def get_residuals(residuals_path):
 
 	Arguments
 	---------
-	residuals_path -- path of the file containing the reisudals.
+	residuals_path -- path of the file containing the residuals.
 	
 	Returns
 	-------
