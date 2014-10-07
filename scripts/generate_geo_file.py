@@ -112,17 +112,8 @@ def main():
 		# write plane surface
 		outfile.write('// plane surface\n')
 		outfile.write('Plane Surface(1) = {1, 2};\n')
-		# physical surfaces and volume
-		outfile.write('// physical surfaces and volume\n')
-		outfile.write('Physical Surface("back") = {%d};\n' % 1)
-		outfile.write('Physical Surface("front") = {%d};\n' % 626)
-		outfile.write('Physical Surface("inlet") = {%d};\n' % 613)
-		outfile.write('Physical Surface("outlet") = {%d};\n' % 621)
-		outfile.write('Physical Surface("bottom") = {%d};\n' % 625)
-		outfile.write('Physical Surface("top") = {%d};\n' % 617)
-		outfile.write('Physical Surface("%s") = {%s};\n' 
-					  % (args.body_name, 
-					  	 ', '.join(str(i) for i in numpy.arange(213, 609+1,4))))
+		# physical volume
+		outfile.write('// physical volume\n')
 		outfile.write('Physical Volume(1) = {1};\n')
 		# create a field box
 		outfile.write('// field box\n')
@@ -139,7 +130,7 @@ def main():
 		# recombine and extrude to get a 3D mesh with 1 cell in 3rd-direction
 		outfile.write('// GMSH parameters\n')
 		outfile.write('Recombine Surface{1} = 0;\n')
-		outfile.write('Mesh.Algorithm = 8;\n')
+		outfile.write('Mesh.Algorithm = 8;\n')	# DelQuad algorithm
 		outfile.write('Extrude {0, 0, 1} {'
 					  '\nSurface{1};\nLayers{1};\nRecombine;\n'
 					  '}\n')
