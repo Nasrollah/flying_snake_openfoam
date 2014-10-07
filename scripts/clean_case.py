@@ -16,7 +16,7 @@ def read_inputs():
 												 'simulation folder',
 						formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	# fill the parser with arguments
-	parser.add_argument('--case', dest='case_dir', type=str, default='.',
+	parser.add_argument('--case', dest='case_directory', type=str, default='.',
 						help='directory of the OpenFOAM case')
 	parser.add_argument('--no-images', dest='images', action='store_false',
 						help='does not remove the images folder')
@@ -44,18 +44,19 @@ def main():
 	# store different paths into a dictionary if no flag
 	parts = {}
 	if args.images:
-		parts['images'] = '%s/images' % args.case_dir
+		parts['images'] = '%s/images' % args.case_directory
 	if args.processors:
-		parts['processors'] = '%s/processor*' % args.case_dir
+		parts['processors'] = '%s/processor*' % args.case_directory
 	if args.solutions:
-		parts['solutions'] = '%s/[1-9]* %s/0.*' % args.case_dir
+		parts['solutions'] = ('%s/[1-9]* %s/0.*' 
+							  % (args.case_directory, args.case_directory))
 	if args.logs:
-		parts['logs'] = '%s/*log*' % args.case_dir
+		parts['logs'] = '%s/*log*' % args.case_directory
 	if args.post_processing:
-		parts['post-processing'] = '%s/postProcessing' % args.case_dir
+		parts['post-processing'] = '%s/postProcessing' % args.case_directory
 
 	# remove paths that are in the dictionary
-	print 'case directory: %s' % args.case_dir
+	print 'case directory: %s' % args.case_directory
 	for key, part in parts.iteritems():
 		print '\t--> deleting %s ...' % key
 		os.system('rm -rf %s' % part)
