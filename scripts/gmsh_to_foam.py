@@ -36,7 +36,7 @@ def main():
 	# copy the GMSH file inside the case folder
 	if args.mesh == None:
 		args.mesh = '%s/mesh_generation/*.msh' % args.case
-	os.system('cp %s %s/.' % (args.mesh, args.case))
+	#os.system('cp %s %s/.' % (args.mesh, args.case))
 
 	mesh_path = '%s/*.msh' % args.case
 	log_path = '%s/mesh.log' % args.case
@@ -73,7 +73,7 @@ def main():
 	os.system('checkMesh -case %s >> %s' % (args.case, log_path))
 
 	# delete mesh file
-	os.system('rm -rf %s' % mesh_path)
+	#os.system('rm -rf %s' % mesh_path)
 
 
 if __name__ == '__main__':

@@ -426,12 +426,12 @@ def main():
 					  % counter.n_volumes)
 		
 		# create a field box
-		'''outfile.write('// field box\n')
+		outfile.write('// field box\n')
 		box_bl_x, box_bl_y = -2.0, -2.0
 		box_tr_x, box_tr_y = +2.0, +2.0
 		outfile.write('Field[1] = Box;\n')
-		outfile.write('Field[1].VIn = %f;\n' % cl_segment)
-		outfile.write('Field[1].VOut = %f;\n' % cl_exterior)
+		outfile.write('Field[1].VIn = %f;\n' % (cl_segment))
+		outfile.write('Field[1].VOut = %f;\n' % (cl_exterior))
 		outfile.write('Field[1].XMin = %f;\n' % box_bl_x)
 		outfile.write('Field[1].XMax = %f;\n' % box_tr_x)
 		outfile.write('Field[1].YMin = %f;\n' % box_bl_y)
@@ -440,10 +440,10 @@ def main():
 		
 		# parameters for GMSH
 		outfile.write('// GMSH parameters\n')
-		outfile.write('Recombine Surface{1} = 0;\n')
+		#outfile.write('Recombine Surface{1} = 0;\n')
 		outfile.write('Mesh.Algorithm = 8;\n')
-		outfile.write('Mesh.Smoothing = 100;\n')
-		outfile.write('General.ExpertMode = 1;')'''
+		#outfile.write('Mesh.Smoothing = 100;\n')
+		#outfile.write('General.ExpertMode = 1;')
 
 
 if __name__ == '__main__':
