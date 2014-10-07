@@ -115,15 +115,14 @@ def main():
 		# physical surfaces and volume
 		outfile.write('// physical surfaces and volume\n')
 		outfile.write('Physical Surface("back") = {%d};\n' % 1)
-		outfile.write('Physical Surface("front") = {%d};\n' % 86)
-		outfile.write('Physical Surface("inlet") = {%d};\n' % 73)
-		outfile.write('Physical Surface("outlet") = {%d};\n' % 81)
-		outfile.write('Physical Surface("bottom") = {%d};\n' % 85)
-		outfile.write('Physical Surface("top") = {%d};\n' % 77)
+		outfile.write('Physical Surface("front") = {%d};\n' % 626)
+		outfile.write('Physical Surface("inlet") = {%d};\n' % 613)
+		outfile.write('Physical Surface("outlet") = {%d};\n' % 621)
+		outfile.write('Physical Surface("bottom") = {%d};\n' % 625)
+		outfile.write('Physical Surface("top") = {%d};\n' % 617)
 		outfile.write('Physical Surface("%s") = {%s};\n' 
 					  % (args.body_name, 
-					  	 ', '.join(str(i) for i in [33, 37, 41, 45, 
-						 							49, 53, 57, 61, 65, 69])))
+					  	 ', '.join(str(i) for i in numpy.arange(213, 609+1,4))))
 		outfile.write('Physical Volume(1) = {1};\n')
 		# create a field box
 		outfile.write('// field box\n')
