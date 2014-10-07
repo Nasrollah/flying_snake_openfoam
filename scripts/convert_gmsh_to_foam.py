@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# file: $FLYING_SNAKE_OPENFOAM/scripts/gmsh_to_foam.py
+# file: $FLYING_SNAKE_OPENFOAM/scripts/convert_gmsh_to_foam.py
 # author: Olivier Mesnard (mesnardo@gwu.edu)
 # description: Change the boundary patches in folder constant/polyMesh
 

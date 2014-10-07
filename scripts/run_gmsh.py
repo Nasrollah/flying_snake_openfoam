@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# file: $FLYING_SNAKE_OPENFOAM
+# file: $FLYING_SNAKE_OPENFOAM/scripts/run_gmsh.py
 # author: Olivier Mesnard (mesnardo@gwu.edu)
 # description: Run GMSH to generate 2D extruded mesh
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# file: $FLYING_SNAKE_OPENFOAM/scripts/plot_drag_cylinder.py
+# file: $FLYING_SNAKE_OPENFOAM/scripts/plot_drag_coefficient_cylinder.py
 # author: Olivier Mesnard (mesnardo@gwu.edu)
 # description: Plot drag coefficient over a cylinder and compare
 #			   with Koumoutsakos and Leonard (1995).
