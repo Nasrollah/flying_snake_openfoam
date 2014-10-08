@@ -47,11 +47,9 @@ def read_inputs():
 							 'dicretized geometry')
 	parser.add_argument('--cl-segment', dest='cl_segment', type=float, 
 						help='characteristic-length of elements on the body')
-	#parser.add_argument('--box', dest='box', type=float, nargs='+',
-	#					help='adds volumes of refinement '
-	#						 '(x_bl, y_bl, x_tr, y_tr, cl_in, cl_max)')
-	parser.add_argument('--box', dest='box_path', type=str, default='box.geo',
-						help='path to file containing box parameters')
+	parser.add_argument('--box', dest='box', type=float, nargs='+',
+						help='adds volumes of refinement '
+							 '(x_bl, y_bl, x_tr, y_tr, cl_in, cl_max)')
 	return parser.parse_args()
 
 
@@ -108,7 +106,7 @@ def main():
 		outfile.write('// body points\n')
 		for i in xrange(n):
 			outfile.write('Point(%d) = {%f, %f, 0.0, %f};\n' 
-						  % (i+1, x[i], y[i], cl_segment))
+						  % (i+1, x[i], y[i], 2*cl_segment))
 		# write body lines
 		outfile.write('// body lines\n')
 		for i in xrange(n-1):
@@ -144,38 +142,46 @@ def main():
 		# physical volume
 		outfile.write('// physical volume\n')
 		outfile.write('Physical Volume(1) = {1};\n')
-
 		# create field boxes
-		if args.box_path:
-			with open(args.box_path, 'r') as infile:
-				outfile.write(infile.read())
-			'''field_counter = 0
-			for i in range(0, len(args.box), 6):
-				field_counter += 1
-				box = {'x_bl': args.box[i], 'y_bl': args.box[i+1],
-					   'x_tr': args.box[i+2], 'y_tr': args.box[i+3],
-					   'cl_in': args.box[i+4], 'cl_out': args.box[i+5]}
-				outfile.write('// field box %d\n' % field_counter)
-				outfile.write('Field[%d] = Box;\n' % field_counter)
+		if args.box:
+			n_level = 10	# number of cells between levels
+			x_bl, y_bl = args.box[0], args.box[1]	# bottom-left corner of box
+			x_tr, y_tr = args.box[2], args.box[3]	# top-right corner of box
+			# parameters of the box
+			box = {'id': 1,
+				   'x_bl': args.box[0], 'y_bl': args.box[1],
+				   'x_tr': args.box[2], 'y_tr': args.box[3],
+				   'cl_in': cl_segment, 'cl_out': cl_exterior}
+			# write different boxes
+			while box['cl_in'] < box['cl_out']:
+				outfile.write('// box field %d\n' % box['id'])
+				outfile.write('Field[%d] = Box;\n' % box['id'])
 				outfile.write('Field[%d].VIn = %f;\n' 
-							  % (field_counter, box['cl_in']))
+							  % (box['id'], box['cl_in']))
 				outfile.write('Field[%d].VOut = %f;\n' 
-							  % (field_counter, box['cl_out']))
+							  % (box['id'], box['cl_out']))
 				outfile.write('Field[%d].XMin = %f;\n' 
-							  % (field_counter, box['x_bl']))
+							  % (box['id'], box['x_bl']))
 				outfile.write('Field[%d].XMax = %f;\n' 
-							  % (field_counter, box['x_tr']))
+							  % (box['id'], box['x_tr']))
 				outfile.write('Field[%d].YMin = %f;\n' 
-							  % (field_counter, box['y_bl']))
+							  % (box['id'], box['y_bl']))
 				outfile.write('Field[%d].YMax = %f;\n' 
-							  % (field_counter, box['y_tr']))
-			field_counter += 1
-			outfile.write('Field[%d] = Min;\n' % (field_counter))
+							  % (box['id'], box['y_tr']))
+				# parameters of the box at the next level
+				box['id'] += 1
+				box['cl_in'] *= 2.0
+				box['x_bl'] -= (n_level-1)*box['cl_in']
+				box['y_bl'] -= (n_level-1)*box['cl_in']
+				box['x_tr'] += (n_level-1)*box['cl_in']
+				box['y_tr'] += (n_level-1)*box['cl_in']
+			# write background field
+			outfile.write('// background field\n')
+			outfile.write('Field[%d] = Min;\n' % box['id'])
 			outfile.write('Field[%d].FieldsList = {%s};\n' 
-						  % (field_counter, 
-						  	 ', '.join([str(i+1) 
-							 			for i in range(field_counter)])))
-			outfile.write('Background Field = %d;\n' % (field_counter))'''
+						  % (box['id'],
+						     ', '.join([str(i) for i in range(1,box['id'])])))
+			outfile.write('Background Field = %d;\n' % box['id'])
 		# recombine and extrude to get a 3D mesh with 1 cell in 3rd-direction
 		outfile.write('// GMSH parameters\n')
 		outfile.write('Recombine Surface{1} = 0;\n')
@@ -183,7 +189,6 @@ def main():
 		outfile.write('Extrude {0, 0, 1} {'
 					  '\nSurface{1};\nLayers{1};\nRecombine;\n'
 					  '}\n')
-
 		outfile.write('Mesh.Smoothing = 100;\n')
 		outfile.write('General.ExpertMode = 1;\n')
 
