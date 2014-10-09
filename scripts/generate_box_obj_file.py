@@ -6,6 +6,7 @@
 
 
 import argparse
+import os
 
 import numpy
 
@@ -59,7 +60,7 @@ def read_inputs():
 	parser.add_argument('--output', dest='output_name', type=str, default='box',
 						help='name of the OBJ file without the extension')
 	parser.add_argument('--save-dir', dest='save_directory', type=str, 
-						default='.',
+						default=os.getcwd(),
 						help='directory where to save the .obj file')
 	return parser.parse_args()
 
