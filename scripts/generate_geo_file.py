@@ -144,44 +144,46 @@ def main():
 		outfile.write('Physical Volume(1) = {1};\n')
 		# create field boxes
 		if args.box:
+			counter_fields = 1
 			n_level = 10	# number of cells between levels
-			x_bl, y_bl = args.box[0], args.box[1]	# bottom-left corner of box
-			x_tr, y_tr = args.box[2], args.box[3]	# top-right corner of box
-			# parameters of the box
-			box = {'id': 1,
-				   'x_bl': args.box[0], 'y_bl': args.box[1],
-				   'x_tr': args.box[2], 'y_tr': args.box[3],
-				   'cl_in': cl_segment, 'cl_out': cl_exterior}
-			# write different boxes
-			while box['cl_in'] < box['cl_out']:
-				outfile.write('// box field %d\n' % box['id'])
-				outfile.write('Field[%d] = Box;\n' % box['id'])
-				outfile.write('Field[%d].VIn = %f;\n' 
-							  % (box['id'], box['cl_in']))
-				outfile.write('Field[%d].VOut = %f;\n' 
-							  % (box['id'], box['cl_out']))
-				outfile.write('Field[%d].XMin = %f;\n' 
-							  % (box['id'], box['x_bl']))
-				outfile.write('Field[%d].XMax = %f;\n' 
-							  % (box['id'], box['x_tr']))
-				outfile.write('Field[%d].YMin = %f;\n' 
-							  % (box['id'], box['y_bl']))
-				outfile.write('Field[%d].YMax = %f;\n' 
-							  % (box['id'], box['y_tr']))
-				# parameters of the box at the next level
-				box['id'] += 1
-				box['cl_in'] *= 2.0
-				box['x_bl'] -= (n_level-1)*box['cl_in']
-				box['y_bl'] -= (n_level-1)*box['cl_in']
-				box['x_tr'] += (n_level-1)*box['cl_in']
-				box['y_tr'] += (n_level-1)*box['cl_in']
+			for i in xrange(0, len(args.box)/5):
+				# parameters of the box
+				box = {'id': counter_fields,
+					   'x_bl': args.box[5*i+0], 'y_bl': args.box[5*i+1],
+					   'x_tr': args.box[5*i+2], 'y_tr': args.box[5*i+3],
+					   'cl_in': args.box[5*i+4], 'cl_out': cl_exterior}
+				# write different boxes
+				while box['cl_in'] < box['cl_out']:
+					outfile.write('// box field %d\n' % box['id'])
+					outfile.write('Field[%d] = Box;\n' % box['id'])
+					outfile.write('Field[%d].VIn = %f;\n' 
+								  % (box['id'], box['cl_in']))
+					outfile.write('Field[%d].VOut = %f;\n' 
+								  % (box['id'], box['cl_out']))
+					outfile.write('Field[%d].XMin = %f;\n' 
+								  % (box['id'], box['x_bl']))
+					outfile.write('Field[%d].XMax = %f;\n' 
+								  % (box['id'], box['x_tr']))
+					outfile.write('Field[%d].YMin = %f;\n' 
+								  % (box['id'], box['y_bl']))
+					outfile.write('Field[%d].YMax = %f;\n' 
+					 			  % (box['id'], box['y_tr']))
+					# parameters of the box at the next level
+					box['id'] += 1
+					box['cl_in'] *= 2.0
+					box['x_bl'] -= (n_level-1)*box['cl_in']
+					box['y_bl'] -= (n_level-1)*box['cl_in']
+					box['x_tr'] += (n_level-1)*box['cl_in']
+					box['y_tr'] += (n_level-1)*box['cl_in']
+					counter_fields +=1
 			# write background field
 			outfile.write('// background field\n')
-			outfile.write('Field[%d] = Min;\n' % box['id'])
+			outfile.write('Field[%d] = Min;\n' % (counter_fields))
 			outfile.write('Field[%d].FieldsList = {%s};\n' 
-						  % (box['id'],
-						     ', '.join([str(i) for i in range(1,box['id'])])))
-			outfile.write('Background Field = %d;\n' % box['id'])
+						  % (counter_fields,
+						     ', '.join([str(i) 
+							 			for i in range(1, counter_fields)])))
+			outfile.write('Background Field = %d;\n' % (counter_fields))
 		# recombine and extrude to get a 3D mesh with 1 cell in 3rd-direction
 		outfile.write('// GMSH parameters\n')
 		outfile.write('Recombine Surface{1} = 0;\n')
