@@ -2,7 +2,7 @@
 
 # file: $FLYING_SNAKE_OPENFOAM/scripts/plot_force_coefficients.py
 # author: Olivier Mesnard (mesnardo@gwu.edu)
-# description: Plot aerodynamic coefficients of the flying snake
+# description: Plot aerodynamic coefficients of an OpenFoam case
 
 
 import os
@@ -208,6 +208,13 @@ def main():
 	"""Plots aerodynamic coefficients."""
 	# parse the command-line
 	args = read_inputs()
+
+	# write list of command-line arguments in a log file
+	log_path = (''
+	log_path = ('%s/%s.log' % (args.case_directory, 
+							   os.path.splitext(os.path.basename(__file__))[0]))
+	with open(log_path, 'w') as outfile:
+		outfile.write('%s\n%s\n' % (str(datetime.datetime.now()), str(args)))
 
 	# store case directories
 	cases = {'main': args.case_directory,
