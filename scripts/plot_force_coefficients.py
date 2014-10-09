@@ -7,6 +7,7 @@
 
 import os
 import argparse
+import datetime
 
 import numpy
 from matplotlib import pyplot
@@ -59,6 +60,15 @@ class Case(object):
 		self.cd_mean = self.cd.sum()/self.cd.size
 		self.cl_mean = self.cl.sum()/self.cl.size
 
+	def get_strouhal_number(self):
+		"""Calculates the Strouhal number."""
+		spectrum = numpy.fft.fft(self.cl)
+		frequencies = numpy.fft.fftfreq(spectrum.size, self.t[1]-self.t[0])
+		mask = frequencies > 0.0
+		peaks = frequencies[mask]
+		magns = numpy.absolute(spectrum[mask])
+		self.strouhal =  peaks[numpy.argmax(magns)]
+
 
 class OpenFoamCase(Case):
 	"""Contains force coefficients of an OpenFoam simulation."""
@@ -76,6 +86,7 @@ class OpenFoamCase(Case):
 		self.read_coefficients(t_start, t_end)
 		# compute mean coefficients
 		self.get_mean_coefficients()
+		self.get_strouhal_number()
 
 	def read_coefficients(self, t_start, t_end):
 		"""Reads force coefficients from files.
@@ -210,15 +221,16 @@ def main():
 	args = read_inputs()
 
 	# write list of command-line arguments in a log file
-	log_path = (''
 	log_path = ('%s/%s.log' % (args.case_directory, 
-							   os.path.splitext(os.path.basename(__file__))[0]))
-	with open(log_path, 'w') as outfile:
-		outfile.write('%s\n%s\n' % (str(datetime.datetime.now()), str(args)))
+		  					   os.path.splitext(os.path.basename(__file__))[0]))
+	if args.save:
+		with open(log_path, 'w') as outfile:
+			outfile.write('%s\n%s\n' % (str(datetime.datetime.now()), 
+										str(args)))
 
 	# store case directories
 	cases = {'main': args.case_directory,
-			 'others': (None if not args.other_cases else args.other_cases),
+			 'others': ([] if not args.other_cases else args.other_cases),
 			 'cuibm': (None if not args.cuibm_path else args.cuibm_path)}
 
 	# read coefficients and compute mean values of main OpenFoam simulation
@@ -234,6 +246,20 @@ def main():
 	if args.cuibm_path:
 		cases['cuibm'] = CuIBMCase(cases['cuibm'], 
 								   t_start=args.start, t_end=args.end)
+
+	# write mean force coefficients and Strouhal numbers in log file
+	if args.save:
+		with open(log_path, 'a') as outfile:
+			outfile.write('\ncase: %s\n' % cases['main'].path)
+			outfile.write('cd = %f\n' % cases['main'].cd_mean)
+			outfile.write('cl = %f\n' % cases['main'].cl_mean)
+			outfile.write('St = %f\n' % cases['main'].strouhal)
+			for case in cases['others']:
+				outfile.write('\ncase: %s\n' % case.path)
+				outfile.write('cd = %f\n' % case.cd_mean)
+				outfile.write('cl = %f\n' % case.cl_mean)
+				outfile.write('St = %f\n' % case.strouhal)
+
 
 	# plot force coefficients
 	plot_coefficients(cases, 
