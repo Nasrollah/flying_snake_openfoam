@@ -19,7 +19,8 @@ def read_inputs():
 									'coefficients for a given simulation',
 						formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	# fill the parser with arguments
-	parser.add_argument('--case', dest='case_directory', type=str, default='.',
+	parser.add_argument('--case', dest='case_directory', type=str, 
+						default=os.getcwd(),
 						help='directory of the OpenFOAM case')
 	parser.add_argument('--show', dest='show', action='store_true',
 						help='displays the aerodynamic coefficients')
@@ -31,13 +32,176 @@ def read_inputs():
 							 ' and to plot instantaneous values')
 	parser.add_argument('--cuibm', dest='cuibm_path', type=str, default=None,
 						help='path of cuIBM force coefficients for comparison')
-	parser.add_argument('--output', '-o', dest='output_name', type=str, 
+	parser.add_argument('--name', dest='image_name', type=str, 
 						default='force_coefficients',
 						help='name of the file generated (no extension)')
 	parser.add_argument('--no-save', dest='save', action='store_false',
 						help='does not save the figure as a .png file')
+	parser.add_argument('--compare', dest='other_cases', type=str, nargs='+',
+						help='directories of other cases for comparison')
 	parser.set_defaults(save=True)
 	return parser.parse_args()
+
+
+class Case(object):
+	"""Contains the path of the simulation."""
+	def __init__(self, path):
+		"""Stores the path of the simulation.
+		
+		Arguments
+		---------
+		path -- path of the simulation.
+		"""
+		self.path = path
+
+	def get_mean_coefficients(self):
+		"""Computes the mean force coefficients."""
+		self.cd_mean = self.cd.sum()/self.cd.size
+		self.cl_mean = self.cl.sum()/self.cl.size
+
+
+class OpenFoamCase(Case):
+	"""Contains force coefficients of an OpenFoam simulation."""
+	def __init__(self, directory, t_start=None, t_end=None):
+		"""Reads the force coefficients and computes the mean coefficients 
+		between two ending-times.
+		
+		Arguments
+		---------
+		directory -- directory of the simulation.
+		t_start, t_end -- boundary times (default: None, None).
+		"""
+		Case.__init__(self, directory)
+		# read force coefficients
+		self.read_coefficients(t_start, t_end)
+		# compute mean coefficients
+		self.get_mean_coefficients()
+
+	def read_coefficients(self, t_start, t_end):
+		"""Reads force coefficients from files.
+		
+		Arguments
+		---------
+		t_start, t_end -- boundary times.
+		"""
+		# initialization
+		self.t = numpy.empty(0)
+		self.cd, self.cl = numpy.empty(0), numpy.empty(0)
+		# read force coefficients files and append to arrays
+		forces_directory = '%s/postProcessing/forceCoeffs' % self.path
+		folders = sorted(os.listdir(forces_directory))
+		for folder in folders:
+			force_path = '%s/%s/forceCoeffs.dat' % (forces_directory, folder)
+			with open(force_path, 'r') as infile:
+				t_tmp, cd_tmp, cl_tmp = numpy.loadtxt(infile, dtype=float, 
+													  usecols=(0, 2, 3), 
+													  delimiter='\t', 
+													  unpack=True)
+			self.t = numpy.append(self.t, t_tmp)
+			self.cd = numpy.append(self.cd, cd_tmp)
+			self.cl = numpy.append(self.cl, cl_tmp)
+		# calculate boundary indices
+		t_start = (self.t[0] if not t_start else t_start)
+		t_end = (self.t[-1] if not t_end else t_end)
+		i_start = numpy.where(self.t >= t_start)[0][0]
+		i_end = numpy.where(self.t >= t_end)[0][0]-1
+		# keep useful slices
+		self.t = self.t[i_start:i_end].copy()
+		self.cd = self.cd[i_start:i_end].copy()
+		self.cl = self.cl[i_start:i_end].copy()
+
+
+class CuIBMCase(Case):
+	"""Contains force coefficients of a cuIBM  simulation."""
+	def __init__(self, path, t_start=None, t_end=None):
+		"""Reads the force coefficients and computes the mean coefficients 
+		between two ending-times.
+		
+		Arguments
+		---------
+		path -- path of the cuIBM force coefficients file.
+		t_start, t_end -- boundary times (default: None, None).
+		"""
+		Case.__init__(self, path)
+		# read force coefficients
+		self.read_coefficients(t_start, t_end)
+		# compute mean coefficients
+		self.get_mean_coefficients()
+
+	def read_coefficients(self, t_start, t_end):
+		"""Reads force coefficients from cuIBM results.
+		
+		Arguments
+		---------
+		t_start, t_end -- boundary times.
+		"""
+		# read the file
+		with open(self.path, 'r') as infile:
+			self.t, self.cd, self.cl = numpy.loadtxt(infile, dtype=float, 
+													 delimiter='\t', 
+													 unpack=True)
+		# keep useful slices
+		i_start = numpy.where(self.t >= t_start)[0][0]
+		if t_end > self.t[-1]:
+			i_end = self.t.size-1
+		else:
+			i_end = numpy.where(self.t >= t_end)[0][0]-1
+		self.t = self.t[i_start:i_end].copy()
+		# multiply by factor 2.0 which does not appear in cuIBM
+		self.cd = 2.*self.cd[i_start:i_end].copy()
+		self.cl = 2.*self.cl[i_start:i_end].copy()
+		
+
+def plot_coefficients(cases, image_name=None, save=False, show=False):
+	"""Plots force coefficients from different simulations.
+	
+	Arguments
+	--------
+	cases -- dictionary that contains info about all simulations to plot.
+	image_name -- name of the file generated (default: None).
+	save -- does save the figure as a .png file (default: False).
+	show -- dislays the figure (default: False).
+	"""
+	# figure parameters
+	pyplot.figure(figsize=(10, 6))
+	pyplot.grid(True)
+	pyplot.xlabel('time', fontsize=16)
+	pyplot.ylabel('force coefficients', fontsize=16)
+	# plot the main OpenFoam force coefficients
+	pyplot.plot(cases['main'].t, cases['main'].cd, 
+				label=r'$C_d$ - %s' % os.path.basename(cases['main'].path),
+				color='r', ls='-', lw=2)
+	pyplot.plot(cases['main'].t, cases['main'].cl, 
+				label=r'$C_l$ - %s' % os.path.basename(cases['main'].path),
+				color='b', ls='-', lw=2)
+	# plot other OpenFoam force coefficients
+	colors = ['g', 'c', 'm', 'y']
+	for i, case in enumerate(cases['others']):
+		pyplot.plot(case.t, case.cd,
+					label=r'$C_d$ - %s' % os.path.basename(case.path),
+					color=colors[i], ls='-', lw=1)
+		pyplot.plot(case.t, case.cl,
+					label=r'$C_l$ - %s' % os.path.basename(case.path),
+					color=colors[i], ls='--', lw=1)
+	# plot cuIBM force coefficients
+	if cases['cuibm']:
+		pyplot.plot(cases['cuibm'].t, cases['cuibm'].cd,
+					label=r'$C_d$ - cuIBM', color='k', ls='-', lw=1)
+		pyplot.plot(cases['cuibm'].t, cases['cuibm'].cl,
+					label=r'$C_l$ - cuIBM', color='k', ls='--', lw=1)
+	pyplot.legend(loc='upper left', prop={'size': 'small'},
+						bbox_to_anchor=(1.0,1.0))
+	# save the figure as a .png file
+	if save:
+		# create images folder if not existing
+		images_directory = '%s/images' % cases['main'].path
+		if not os.path.isdir(images_directory):
+			os.makedirs(images_directory)
+		pyplot.savefig('%s/%s.png' % (images_directory, image_name),
+					   bbox_inches='tight')
+	# display the figure
+	if show:
+		pyplot.show()
 
 
 def main():
@@ -45,89 +209,30 @@ def main():
 	# parse the command-line
 	args = read_inputs()
 
-	# initialization
-	t, cd, cl = numpy.empty(0), numpy.empty(0), numpy.empty(0)
-	
-	# read force coefficients from files
-	force_path = '%s/postProcessing/forceCoeffs/' % args.case_directory
-	folders = sorted(os.listdir(force_path))
-	for folder in folders:
-		with open(force_path+folder+'/forceCoeffs.dat') as infile:
-			t_tmp, cd_tmp, cl_tmp = numpy.loadtxt(infile, dtype=float, 
-											   	  usecols=(0,2,3), 
-												  delimiter='\t', unpack=True)
-		t = numpy.append(t, t_tmp)
-		cd = numpy.append(cd, cd_tmp)
-		cl = numpy.append(cl, cl_tmp)
+	# store case directories
+	cases = {'main': args.case_directory,
+			 'others': (None if not args.other_cases else args.other_cases),
+			 'cuibm': (None if not args.cuibm_path else args.cuibm_path)}
 
-	# calculates boundary indices
-	t_start = (t[0] if not args.start else args.start)
-	t_end = (t[-1] if not args.end else args.end)
-	i_start = numpy.where(t >= t_start)[0][0]
-	i_end = numpy.where(t >= t_end)[0][0]-1
+	# read coefficients and compute mean values of main OpenFoam simulation
+	cases['main'] = OpenFoamCase(cases['main'], 
+								 t_start=args.start, t_end=args.end)
 
-	# keep useful slices
-	t = t[i_start:i_end].copy()
-	cd = cd[i_start:i_end].copy()
-	cl = cl[i_start:i_end].copy()
+	# read coefficients and compute mean values of other OpenFoam simulations
+	for i, directory in enumerate(cases['others']):
+		cases['others'][i] = OpenFoamCase(directory, 
+										  t_start=args.start, t_end=args.end)
 
-	# compute mean coefficients
-	cd_mean = cd.sum()/cd.size
-	cl_mean = cl.sum()/cl.size
-
-	# output print
-	print '\t--> mean drag coefficient: %g' % cd_mean
-	print '\t--> mean lift coefficient: %g' % cl_mean
-
-	# plot instantaneous force coefficients
-	pyplot.figure()
-	pyplot.grid(True)
-	pyplot.xlabel('Times', fontsize=16)
-	pyplot.ylabel('Force Coefficients', fontsize=16)
-	pyplot.plot(t, cd, label=r'$C_d$', color='r', ls='-', lw=2)
-	pyplot.plot(t, cl, label=r'$C_l$', color='b', ls='-', lw=2)
+	# read coefficients and compute mean values of cuIBM simulation
 	if args.cuibm_path:
-		# read cuIBM force coefficients
-		with open(args.cuibm_path, 'r') as infile:
-			t_cuibm, cd_cuibm, cl_cuibm = numpy.loadtxt(infile, dtype=float, 
-													 	delimiter='\t', 
-													 	unpack=True)
-		# keep useful slices
-		i_start = numpy.where(t_cuibm >= t_start)[0][0]
-		if t_end > t_cuibm[-1]:
-			i_end = t_cuibm.size-1
-		else:
-			i_end = numpy.where(t_cuibm >= t_end)[0][0]-1
-		t_cuibm = t_cuibm[i_start:i_end].copy()
-		# multiplied by factor 2.0 because forgot in cuIBM
-		cd_cuibm = 2.*cd_cuibm[i_start:i_end].copy()
-		cl_cuibm = 2.*cl_cuibm[i_start:i_end].copy()
-		
-		# compute mean coefficients
-		cd_cuibm_mean = cd_cuibm.sum()/cd_cuibm.size
-		cl_cuibm_mean = cl_cuibm.sum()/cl_cuibm.size
+		cases['cuibm'] = CuIBMCase(cases['cuibm'], 
+								   t_start=args.start, t_end=args.end)
 
-		# output print
-		print '\t--> mean drag coefficient with cuIBM: %g' % cd_cuibm_mean
-		print '\t--> mean lift coefficient with cuIBM: %g' % cl_cuibm_mean
-
-		# add cuIBM instantaneous values to the figure
-		pyplot.plot(t_cuibm, cd_cuibm, label=r'$C_d$ - cuIBM', 
-					color='r', ls='--')
-		pyplot.plot(t_cuibm, cl_cuibm, label=r'$C_l$ - cuIBM', 
-					color='b', ls='--')
-
-	pyplot.legend(loc='best', prop={'size': 16})
-	
-	if args.save:
-		# create images folder is not existing
-		images_path = '%s/images' % args.case_directory
-		if not os.path.isdir(images_path):
-			os.makedirs(images_path)
-		pyplot.savefig('%s/%s.png' % (images_path, args.output_name))
-	
-	if args.show:
-		pyplot.show()
+	# plot force coefficients
+	plot_coefficients(cases, 
+					  image_name=args.image_name, 
+					  save=args.save, 
+					  show=args.show)
 
 
 if __name__ == '__main__':
