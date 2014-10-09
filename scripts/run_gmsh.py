@@ -16,7 +16,8 @@ def read_inputs():
 												 'a 2D extruded mesh',
 						formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	# fill parser with arguments
-	parser.add_argument('--geo', dest='geo_path', type=str, default='./*.geo',
+	parser.add_argument('--geo', dest='geo_path', type=str, 
+						default='./cylinder.geo',
 						help='path of the .geo file')
 	return parser.parse_args()
 

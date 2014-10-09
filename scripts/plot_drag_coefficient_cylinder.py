@@ -21,7 +21,7 @@ def read_inputs():
 									 'Koumoutsakos and Leonard (1995)',
 						formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	# fill parser with arguments
-	parser.add_argument('--case', dest='case_directory', type=str,
+	parser.add_argument('--case', dest='case_directory', type=str, default='.',
 						help='directory of the simulation case')
 	parser.add_argument('--start', dest='start', type=float, default=0.0,
 						help='starting-time')

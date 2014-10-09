@@ -78,8 +78,8 @@ def main():
 		os.makedirs(images_path)
 
 	# display front patch and read pressure and velocity
-	of_file_name = '%s.OpenFOAM' 
-				   % os.path.basename(os.path.normpath(args.case_directory))
+	of_file_name = ('%s.OpenFOAM' 
+				   % os.path.basename(os.path.normpath(args.case_directory)))
 	flying_snake = PV3FoamReader(FileName=('%s/%s' 
 										   % (args.case_directory, 
 										   	  of_file_name)))
@@ -96,8 +96,8 @@ def main():
 		x_bl, y_bl, x_tr, y_tr, width = get_view(view=args.view)
 	x_center, y_center = 0.5*(x_tr+x_bl), 0.5*(y_tr+y_bl)
 	# coeff value below needs to be fully understood
-	coeff = 20./10.
-	#coeff = 1.
+	#coeff = 20./10.
+	coeff = 1.
 	h = 0.5*(y_tr-y_bl) + coeff
 	height = width*(y_tr-y_bl)/(x_tr-x_bl)
 
