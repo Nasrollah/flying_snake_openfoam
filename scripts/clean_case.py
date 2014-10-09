@@ -16,7 +16,8 @@ def read_inputs():
 												 'simulation folder',
 						formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	# fill the parser with arguments
-	parser.add_argument('--case', dest='case_directory', type=str, default='.',
+	parser.add_argument('--case', dest='case_directory', type=str, 
+						default=os.getcwd(),
 						help='directory of the OpenFOAM case')
 	parser.add_argument('--no-images', dest='images', action='store_false',
 						help='does not remove the images folder')

@@ -19,7 +19,8 @@ def read_inputs():
 												 'with ParaFOAM',
 						formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	# fill the parser with arguments
-	parser.add_argument('--case', dest='case_directory', type=str, default='.',
+	parser.add_argument('--case', dest='case_directory', type=str, 
+						default=os.getcwd(),
 						help='directory of the OpenFOAM case')
 	parser.add_argument('--variable', '-v', dest='variable', type=str,
 						help='variable (vorticity or pressure) to plot')

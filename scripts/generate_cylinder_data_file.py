@@ -28,7 +28,7 @@ def read_inputs():
 	parser.add_argument('--radius', '-r', dest='r', type=float, default=0.5,
 						help='radius of the cylinder')
 	parser.add_argument('--save-dir', '-s', dest='save_dir', type=str,
-						default='.',
+						default=os.getcwd(),
 						help='directory where the file will be saved')
 	parser.add_argument('--show', dest='show', action='store_true',
 						help='plots and displays the cylinder in a figure')

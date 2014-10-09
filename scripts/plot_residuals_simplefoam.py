@@ -6,6 +6,7 @@
 
 
 import argparse
+import os
 
 import numpy
 from matplotlib import pyplot
@@ -19,6 +20,7 @@ def read_inputs():
 						formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	# fill the parser with arguments
 	parser.add_argument('--case', dest='case_directory', type=str,
+						default=os.getcwd()
 						help='directory of the simpleFoam simulation')
 	parser.add_argument('--show', dest='show', action='store_true',
 						help='displays the figure')

@@ -25,7 +25,8 @@ def read_inputs():
 	parser.add_argument('--body-name', dest='body_name', type=str, 
 						default='cylinder',
 						help='name of the patch used in OpenFOAM')
-	parser.add_argument('--save-dir', dest='save_dir', type=str, default='.',
+	parser.add_argument('--save-dir', dest='save_dir', type=str, 
+						default=os.getcwd(),
 						help='directory where to save .geo file')
 	parser.add_argument('--bottom-left', '-bl', dest='bl', type=float,
 						nargs='+', default=[-20.0, -20.0],

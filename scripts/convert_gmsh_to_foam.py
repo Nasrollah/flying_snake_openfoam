@@ -17,9 +17,11 @@ def read_inputs():
 									 'of the OpenFOAM case',
 						formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	# fill the parser with arguments
-	parser.add_argument('--case', dest='case_directory', type=str, default='.',
+	parser.add_argument('--case', dest='case_directory', type=str, 
+						default=os.getcwd(),
 						help='directory of the OpenFOAM case')
-	parser.add_argument('--mesh', dest='mesh_path', type=str, default='./*.msh',
+	parser.add_argument('--mesh', dest='mesh_path', type=str, 
+						default='%s/*.msh' % os.getcwd(),
 						help='path of the GMSH .msh file')
 	parser.add_argument('--body-name', dest='body_name', type=str, 
 						default='cylinder',
