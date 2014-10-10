@@ -57,7 +57,7 @@ def read_inputs():
 						help='z-coordinate of the box')
 	parser.add_argument('-n', dest='n', type=int, nargs='+', default=[100, 100],
 						help='number of points in the x- and y- directions')
-	parser.add_argument('--output', dest='output_name', type=str, default='box',
+	parser.add_argument('--name', dest='name', type=str, default='box',
 						help='name of the OBJ file without the extension')
 	parser.add_argument('--save-dir', dest='save_directory', type=str, 
 						default=os.getcwd(),
@@ -109,13 +109,13 @@ def main():
 			   '# faces: %d\n'
 			   '# zones: 1\n'
 			   '# regions: 0 %s\n'
-			   % (nx*ny, 2*(nx-1)*(ny-1), args.output_name))
-	obj_path = '%s/%s.obj' % (args.save_directory, args.output_name)
+			   % (nx*ny, 2*(nx-1)*(ny-1), args.name))
+	obj_path = '%s/%s.obj' % (args.save_directory, args.name)
 	with open(obj_path, 'w') as outfile:
 		outfile.write(header)
 		for vertex in vertices:
 			outfile.write('v %.6f %.6f %.6f\n' % (vertex.x, vertex.y, args.z))
-		outfile.write('g %s\n' % args.output_name)
+		outfile.write('g %s\n' % args.name)
 		for face in faces:
 			outfile.write('f %d %d %d\n' % (face.vertex_1.index+1,
 											face.vertex_2.index+1,
