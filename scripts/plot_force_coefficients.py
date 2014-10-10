@@ -27,10 +27,13 @@ def read_inputs():
 						help='displays the aerodynamic coefficients')
 	parser.add_argument('--start', dest='start', type=float, default=None,
 						help='starting-time to compute mean coefficients '
-							 ' and to plot instantaneous values')
+							 ' and the Strouhal number')
 	parser.add_argument('--end', dest='end', type=float, default=None,
 						help='ending-time to compute mean coefficients '
-							 ' and to plot instantaneous values')
+							 ' and the Strouhal number')
+	parser.add_argument('--limits', dest='limits', type=float, nargs='+',
+						default=[None, None, None, None],
+						help='time-limits to plot force coefficients')
 	parser.add_argument('--cuibm', dest='cuibm_path', type=str, default=None,
 						help='path of cuIBM force coefficients for comparison')
 	parser.add_argument('--name', dest='image_name', type=str, 
@@ -40,6 +43,8 @@ def read_inputs():
 						help='does not save the figure as a .png file')
 	parser.add_argument('--compare', dest='other_cases', type=str, nargs='+',
 						help='directories of other cases for comparison')
+	parser.add_argument('--legend', dest='legend', type=str, nargs='+',
+						help='legend for each simulation to plot')
 	parser.set_defaults(save=True)
 	return parser.parse_args()
 
@@ -55,15 +60,30 @@ class Case(object):
 		"""
 		self.path = path
 
+	def get_time_limits(self, t_start, t_end):
+		"""Computes the time-limits and their indices in the time array.
+		
+		Arguments
+		---------
+		t_start, t_end -- time-limits to compute mean coefficients and Strouhal.
+		"""
+		self.t_start = (self.t[0] if not t_start else t_start)
+		self.t_end = (self.t[-1] if not t_end else t_end)
+		self.i_start = numpy.where(self.t >= self.t_start)[0][0]
+		self.i_end = numpy.where(self.t >= t_end)[0][0]-1
+
 	def get_mean_coefficients(self):
 		"""Computes the mean force coefficients."""
-		self.cd_mean = self.cd.sum()/self.cd.size
-		self.cl_mean = self.cl.sum()/self.cl.size
+		self.cd_mean = (self.cd[self.i_start:self.i_end].sum()
+						/ self.cd[self.i_start:self.i_end].size)
+		self.cl_mean = (self.cl[self.i_start:self.i_end].sum()
+						/ self.cl[self.i_start:self.i_end].size)
 
 	def get_strouhal_number(self):
 		"""Calculates the Strouhal number."""
-		spectrum = numpy.fft.fft(self.cl)
-		frequencies = numpy.fft.fftfreq(spectrum.size, self.t[1]-self.t[0])
+		spectrum = numpy.fft.fft(self.cl[self.i_start:self.i_end])
+		dt = self.t[self.i_start+1] - self.t[self.i_start]
+		frequencies = numpy.fft.fftfreq(spectrum.size, dt)
 		mask = frequencies > 0.0
 		peaks = frequencies[mask]
 		magns = numpy.absolute(spectrum[mask])
@@ -83,18 +103,14 @@ class OpenFoamCase(Case):
 		"""
 		Case.__init__(self, directory)
 		# read force coefficients
-		self.read_coefficients(t_start, t_end)
+		self.read_coefficients()
 		# compute mean coefficients
+		self.get_time_limits(t_start, t_end)
 		self.get_mean_coefficients()
 		self.get_strouhal_number()
 
-	def read_coefficients(self, t_start, t_end):
-		"""Reads force coefficients from files.
-		
-		Arguments
-		---------
-		t_start, t_end -- boundary times.
-		"""
+	def read_coefficients(self):
+		"""Reads force coefficients from files."""
 		# initialization
 		self.t = numpy.empty(0)
 		self.cd, self.cl = numpy.empty(0), numpy.empty(0)
@@ -111,15 +127,6 @@ class OpenFoamCase(Case):
 			self.t = numpy.append(self.t, t_tmp)
 			self.cd = numpy.append(self.cd, cd_tmp)
 			self.cl = numpy.append(self.cl, cl_tmp)
-		# calculate boundary indices
-		t_start = (self.t[0] if not t_start else t_start)
-		t_end = (self.t[-1] if not t_end else t_end)
-		i_start = numpy.where(self.t >= t_start)[0][0]
-		i_end = numpy.where(self.t >= t_end)[0][0]-1
-		# keep useful slices
-		self.t = self.t[i_start:i_end].copy()
-		self.cd = self.cd[i_start:i_end].copy()
-		self.cl = self.cl[i_start:i_end].copy()
 
 
 class CuIBMCase(Case):
@@ -135,44 +142,43 @@ class CuIBMCase(Case):
 		"""
 		Case.__init__(self, path)
 		# read force coefficients
-		self.read_coefficients(t_start, t_end)
+		self.read_coefficients()
 		# compute mean coefficients
+		self.get_time_limits(t_start, t_end)
 		self.get_mean_coefficients()
 
-	def read_coefficients(self, t_start, t_end):
-		"""Reads force coefficients from cuIBM results.
-		
-		Arguments
-		---------
-		t_start, t_end -- boundary times.
-		"""
+	def read_coefficients(self):
+		"""Reads force coefficients from cuIBM results."""
 		# read the file
 		with open(self.path, 'r') as infile:
 			self.t, self.cd, self.cl = numpy.loadtxt(infile, dtype=float, 
 													 delimiter='\t', 
 													 unpack=True)
-		# keep useful slices
-		i_start = numpy.where(self.t >= t_start)[0][0]
-		if t_end > self.t[-1]:
-			i_end = self.t.size-1
-		else:
-			i_end = numpy.where(self.t >= t_end)[0][0]-1
-		self.t = self.t[i_start:i_end].copy()
-		# multiply by factor 2.0 which does not appear in cuIBM
-		self.cd = 2.*self.cd[i_start:i_end].copy()
-		self.cl = 2.*self.cl[i_start:i_end].copy()
+		# cuIBM script does not include the coefficient 2.0
+		self.cd *= 2.0
+		self.cl *= 2.0
 		
 
-def plot_coefficients(cases, image_name=None, save=False, show=False):
+def plot_coefficients(cases, args):
 	"""Plots force coefficients from different simulations.
 	
 	Arguments
 	--------
 	cases -- dictionary that contains info about all simulations to plot.
-	image_name -- name of the file generated (default: None).
-	save -- does save the figure as a .png file (default: False).
-	show -- dislays the figure (default: False).
+	args -- namespace of command-line arguments
 	"""
+	# get the legend for each plot
+	legend = {}
+	if not args.legend:
+		legend['main'] = os.path.basename(cases['main'].path)
+		legend['others'] = []
+		for case in cases['others']:
+			legend['others'].append(os.path.basename(case.path))
+	else:
+		legend['main'] = args.legend[0]
+		legend['others'] = []
+		for i in xrange(len(cases['others'])):
+			legend['others'].append(args.legend[i+1])
 	# figure parameters
 	pyplot.figure(figsize=(10, 6))
 	pyplot.grid(True)
@@ -180,19 +186,17 @@ def plot_coefficients(cases, image_name=None, save=False, show=False):
 	pyplot.ylabel('force coefficients', fontsize=16)
 	# plot the main OpenFoam force coefficients
 	pyplot.plot(cases['main'].t, cases['main'].cd, 
-				label=r'$C_d$ - %s' % os.path.basename(cases['main'].path),
-				color='r', ls='-', lw=2)
+				label=r'$C_d$ - %s' % legend['main'], color='r', ls='-', lw=2)
 	pyplot.plot(cases['main'].t, cases['main'].cl, 
-				label=r'$C_l$ - %s' % os.path.basename(cases['main'].path),
-				color='b', ls='-', lw=2)
+				label=r'$C_l$ - %s' % legend['main'], color='b', ls='-', lw=2)
 	# plot other OpenFoam force coefficients
 	colors = ['g', 'c', 'm', 'y']
 	for i, case in enumerate(cases['others']):
-		pyplot.plot(case.t, case.cd,
-					label=r'$C_d$ - %s' % os.path.basename(case.path),
+		pyplot.plot(case.t, case.cd, 
+					label=r'$C_d$ - %s' % legend['others'][i],
 					color=colors[i], ls='-', lw=1)
 		pyplot.plot(case.t, case.cl,
-					label=r'$C_l$ - %s' % os.path.basename(case.path),
+					label=r'$C_l$ - %s' % legend['others'][i],
 					color=colors[i], ls='--', lw=1)
 	# plot cuIBM force coefficients
 	if cases['cuibm']:
@@ -200,18 +204,25 @@ def plot_coefficients(cases, image_name=None, save=False, show=False):
 					label=r'$C_d$ - cuIBM', color='k', ls='-', lw=1)
 		pyplot.plot(cases['cuibm'].t, cases['cuibm'].cl,
 					label=r'$C_l$ - cuIBM', color='k', ls='--', lw=1)
+	print args.limits
+	x_min = (cases['main'].t[0] if not args.limits else args.limits[0])
+	x_max = (cases['main'].t[-1] if not args.limits else args.limits[1])
+	y_min = (-2.0 if not args.limits else args.limits[2])
+	y_max = (+2.0 if not args.limits else args.limits[3])
+	pyplot.xlim(x_min, x_max)
+	pyplot.ylim(y_min, y_max)
 	pyplot.legend(loc='upper left', prop={'size': 'small'},
 						bbox_to_anchor=(1.0,1.0))
 	# save the figure as a .png file
-	if save:
+	if args.save:
 		# create images folder if not existing
-		images_directory = '%s/images' % cases['main'].path
+		images_directory = '%s/images' % args.case_directory
 		if not os.path.isdir(images_directory):
 			os.makedirs(images_directory)
-		pyplot.savefig('%s/%s.png' % (images_directory, image_name),
+		pyplot.savefig('%s/%s.png' % (images_directory, args.image_name),
 					   bbox_inches='tight')
 	# display the figure
-	if show:
+	if args.show:
 		pyplot.show()
 
 
@@ -262,10 +273,7 @@ def main():
 
 
 	# plot force coefficients
-	plot_coefficients(cases, 
-					  image_name=args.image_name, 
-					  save=args.save, 
-					  show=args.show)
+	plot_coefficients(cases, args)
 
 
 if __name__ == '__main__':

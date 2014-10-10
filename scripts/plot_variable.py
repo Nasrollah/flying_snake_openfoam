@@ -24,8 +24,12 @@ def read_inputs():
 						help='directory of the OpenFOAM case')
 	parser.add_argument('--variable', '-v', dest='variable', type=str,
 						help='variable (vorticity or pressure) to plot')
-	parser.add_argument('--vortlim', dest='vort_lim', type=float, default=5.0,
+	parser.add_argument('--vorticity-limit', '-vl', dest='vorticity_limit', 
+						type=float, default=5.0,
 						help='upper limit of zero-symmetric vorticity range')
+	parser.add_argument('--pressure-limit', '-pl', dest='pressure_limit', 
+						type=float, nargs='+', default=[-1.0, 0.5],
+						help='limits of pressure range')
 	parser.add_argument('--times', dest='times', type=float, nargs='+',
 						default=None,
 						help='range of times to plot (min, max, increment)')
@@ -35,14 +39,16 @@ def read_inputs():
 						help='ending-time to plot')
 	parser.add_argument('--view', dest='view', type=str, default=None,
 						help='pre-recorded view')
-	parser.add_argument('--bl', dest='bottom_left', type=float, nargs='+', 
-						default=[-2.0,-2.0],
+	parser.add_argument('--bottom-left', '-bl', dest='bottom_left', type=float, 
+						nargs='+', default=[-2.0,-2.0],
 						help='bottom-left corner of the view')
-	parser.add_argument('--tr', dest='top_right', type=float, nargs='+', 
-						default=[+2.0,+2.0],
+	parser.add_argument('--top-right', '-tr', dest='top_right', type=float, 
+						nargs='+', default=[+2.0,+2.0],
 						help='top-right corner of the view')
-	parser.add_argument('--width', dest='width', type=float, default=600,
+	parser.add_argument('--width', '-w', dest='width', type=float, default=600,
 						help='width (in pixel) of the image generated')
+	parser.add_argument('--coeff', dest='coeff', type=float, default=1.0,
+						help='WIP: coefficient to adjust the view')
 	return parser.parse_args()
 
 
@@ -92,14 +98,12 @@ def main():
 		x_bl, y_bl = args.bottom_left[0], args.bottom_left[1]
 		x_tr, y_tr = args.top_right[0], args.top_right[1]
 		width = args.width
-		args.view = 'custom'
+		args.view = '%g_%g_%g_%g' % (x_bl, y_bl, x_tr, y_tr)
 	else:
 		x_bl, y_bl, x_tr, y_tr, width = get_view(view=args.view)
 	x_center, y_center = 0.5*(x_tr+x_bl), 0.5*(y_tr+y_bl)
 	# coeff value below needs to be fully understood
-	#coeff = 20./10.
-	coeff = 1. + 1.
-	h = 0.5*(y_tr-y_bl) + coeff
+	h = 0.5*(y_tr-y_bl) + args.coeff
 	height = width*(y_tr-y_bl)/(x_tr-x_bl)
 
 	# set up the view
@@ -125,20 +129,28 @@ def main():
 		compute_derivatives.OutputVectorType = 'Vorticity'
 		
 		# edit color-map
+		vorticity_min = -args.vorticity_limit
+		vorticity_max = +args.vorticity_limit
 		PVLookupTable = GetLookupTableForArray('Vorticity', 3, 
-									RGBPoints=[-args.vort_lim, 0.0, 0.0, 1.0, 
-							   			   	   +args.vort_lim, 1.0, 0.0, 0.0], 
-									VectorMode='Component', 
-									VectorComponent=2, 
-									NanColor=[0.0, 0.0, 0.0],
-									ColorSpace='Diverging', 
-									ScalarRangeInitialized=1.0, 
-									LockScalarRange=1)
+											   RGBPoints=[vorticity_min, 
+											   			  0.0, 0.0, 1.0, 
+							   			   	   			  vorticity_max, 
+											   			  1.0, 0.0, 0.0], 
+											   VectorMode='Component', 
+											   VectorComponent=2, 
+											   NanColor=[0.0, 0.0, 0.0],
+											   ColorSpace='Diverging', 
+											   ScalarRangeInitialized=1.0, 
+											   LockScalarRange=1)
 	elif args.variable == 'pressure':
 		# edit color-map
+		pressure_min = float("{0:.2f}".format(args.pressure_limit[0]))
+		pressure_max = float("{0:.2f}".format(args.pressure_limit[1]))
 		PVLookupTable = GetLookupTableForArray('p', 1,
-											   RGBPoints=[-1.0, 0.0, 0.0, 1.0,
-														  +0.5, 1.0, 0.0, 0.0],
+											   RGBPoints=[pressure_min,
+											   		      0.0, 0.0, 1.0,
+													      pressure_max, 
+													      1.0, 0.0, 0.0],
 											   VectorMode='Magnitude',
 											   NanColor=[0.0, 0.0, 0.0],
 											   ColorSpace='HSV',
