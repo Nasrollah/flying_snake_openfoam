@@ -53,7 +53,7 @@ def read_inputs():
 	parser.add_argument('--top-right', '-tr', dest='tr', type=float, 
 						nargs='+', default=[2.0, 2.0],
 						help='coordinates of the top-right corner of the box')
-	parser.add_argument('-z', dest='z', type=float, default=1.0,
+	parser.add_argument('-z', dest='z', type=float, default=0.0,
 						help='z-coordinate of the box')
 	parser.add_argument('-n', dest='n', type=int, nargs='+', default=[100, 100],
 						help='number of points in the x- and y- directions')
