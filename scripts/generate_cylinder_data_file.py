@@ -27,6 +27,8 @@ def read_inputs():
 						help='coordinates of the center of the cylinder')
 	parser.add_argument('--radius', '-r', dest='r', type=float, default=0.5,
 						help='radius of the cylinder')
+	parser.add_argument('--name', dest='name', type=str, default=None,
+						help='name of the file generated (no extension)')
 	parser.add_argument('--save-dir', '-s', dest='save_dir', type=str,
 						default=os.getcwd(),
 						help='directory where the file will be saved')
@@ -50,7 +52,9 @@ def main():
 	y = y_center + R*numpy.sin(numpy.linspace(0.0, 2.0*math.pi, N+1)[:-1])
 
 	# write coordinates into a data file
-	with open('%s/cylinder_%g_%d.dat' % (args.save_dir, R, N), 'w') as outfile:
+	if not args.name:
+		args.name = 'cylinder_%g_%d' % (R, N)
+	with open('%s/%s.dat' % (args.save_dir, args.name), 'w') as outfile:
 		outfile.write('%d\n' % N)
 		numpy.savetxt(outfile, numpy.c_[x, y], fmt='%.6f', delimiter='\t')
 
