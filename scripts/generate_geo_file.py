@@ -38,20 +38,31 @@ def read_inputs():
 							 'computational domain')
 	parser.add_argument('--n-exterior', dest='n_exterior', type=int,
 						default=20,
-						help='number of points on inlet boundary '
-							 '(inlet, outlet, bottom and top)')
-	parser.add_argument('--cl-exterior', dest='cl_exterior', type=float, 
-						help='characteristic-length of elements at external '
-							 'boundaries')
-	parser.add_argument('--n-segment', dest='n_segment', type=int, default=2,
-						help='number of points on each segment of the '
-							 'dicretized geometry')
-	parser.add_argument('--cl-segment', dest='cl_segment', type=float, 
-						help='characteristic-length of elements on the body')
-	parser.add_argument('--box', dest='box', type=float, nargs='+',
-						help='adds volumes of refinement '
-							 '(x_bl, y_bl, x_tr, y_tr, cl_in, cl_max)')
+						help='number of points on inlet boundary')
+	parser.add_argument('--level', dest='level', type=int, default=0,
+						help='level of refinement on the body')
+	parser.add_argument('--box', dest='boxes', type=float, nargs='+',
+						help='adds refinement boxes '
+							 '(x_bl, y_bl, x_tr, y_tr, level)')
 	return parser.parse_args()
+
+
+def write_box(box, outfile):
+	"""Writes a box into a file.
+	
+	Arguments
+	---------
+	box -- dictionary containing parameters of the box.
+	outfile -- stream to the output file.
+	"""
+	outfile.write('// box field %d\n' % box['id'])
+	outfile.write('Field[%d] = Box;\n' % box['id'])
+	outfile.write('Field[%d].VIn = %f;\n' % (box['id'], box['cl_in']))
+	outfile.write('Field[%d].VOut = %f;\n' % (box['id'], box['cl_out']))
+	outfile.write('Field[%d].XMin = %f;\n' % (box['id'], box['x_bl']))
+	outfile.write('Field[%d].XMax = %f;\n' % (box['id'], box['x_tr']))
+	outfile.write('Field[%d].YMin = %f;\n' % (box['id'], box['y_bl']))
+	outfile.write('Field[%d].YMax = %f;\n' % (box['id'], box['y_tr']))
 
 
 def main():
@@ -67,7 +78,7 @@ def main():
 
 	print '\ninput\n-----'
 	print 'coordinates path: %s' % args.coordinates_path
-	print 'number of body points: %d' % n
+	print 'number of body points: %d' % x.size
 
 	# compute length of each body-segments
 	lengths = numpy.append(numpy.sqrt((x[:-1]-x[1:])**2+(y[:-1]-y[1:])**2),
@@ -77,37 +88,31 @@ def main():
 	print 'maximum segment-length: %g' % lengths.max()
 	print 'average segment-length: %g' % (lengths.sum()/lengths.size)
 
-	# domain parameters
+	# domain boundaries
 	x_bl, y_bl = args.bl[0], args.bl[1]
 	x_tr, y_tr = args.tr[0], args.tr[1]
 
 	# external characteristic-length
-	if not args.cl_exterior:
-		cl_exterior = (y_tr-y_bl)/args.n_exterior
-	else:
-		cl_exterior = args.cl_exterior
+	cl_exterior = (y_tr-y_bl)/args.n_exterior
 
 	# body characteristic-length
-	if not args.cl_segment:
-		cl_segment = lengths.max()/args.n_segment
-	else:
-		cl_segment = args.cl_segment
+	cl_body = cl_exterior/2.0**args.level
 
 	print '\ncharacteristic lengths\n----------------------'
-	print 'external boundaries: %g' % cl_exterior
-	print 'geometry (maximum): %g' % cl_segment
+	print 'external boundaries: %g (level 0)' % cl_exterior
+	print 'geometry (maximum): %g (level %d)' % (cl_body, args.level)
 
 	# write .geo file
 	geo_path = '%s/%s.geo' % (args.save_dir, args.geo_name)
 	with open(geo_path, 'w') as outfile:
 		# write characteristic-lengths
 		outfile.write('cl_exterior = %f;\n' % cl_exterior)
-		outfile.write('cl_segment = %f;\n' % cl_segment)
+		outfile.write('cl_body = %f;\n' % cl_body)
 		# write body points
 		outfile.write('// body points\n')
 		for i in xrange(n):
 			outfile.write('Point(%d) = {%f, %f, 0.0, %f};\n' 
-						  % (i+1, x[i], y[i], 2*cl_segment))
+						  % (i+1, x[i], y[i], cl_body))
 		# write body lines
 		outfile.write('// body lines\n')
 		for i in xrange(n-1):
@@ -143,48 +148,55 @@ def main():
 		# physical volume
 		outfile.write('// physical volume\n')
 		outfile.write('Physical Volume(1) = {1};\n')
-		# create field boxes
-		if args.box:
-			counter_fields = 1
-			n_level = 10	# number of cells between levels
-			for i in xrange(0, len(args.box)/5):
+		# create box fields
+		if args.boxes:
+			counter_fields = 0
+			n_buffer = 10	# number of cells between levels of refinement
+			n_boxes = len(args.boxes)/5
+			for i in xrange(n_boxes):
+				index_box = 5*i
 				# parameters of the box
+				counter_fields += 1
 				box = {'id': counter_fields,
-					   'x_bl': args.box[5*i+0], 'y_bl': args.box[5*i+1],
-					   'x_tr': args.box[5*i+2], 'y_tr': args.box[5*i+3],
-					   'cl_in': args.box[5*i+4], 'cl_out': cl_exterior}
-				# write different boxes
-				while box['cl_in'] < box['cl_out']:
-					outfile.write('// box field %d\n' % box['id'])
-					outfile.write('Field[%d] = Box;\n' % box['id'])
-					outfile.write('Field[%d].VIn = %f;\n' 
-								  % (box['id'], box['cl_in']))
-					outfile.write('Field[%d].VOut = %f;\n' 
-								  % (box['id'], box['cl_out']))
-					outfile.write('Field[%d].XMin = %f;\n' 
-								  % (box['id'], box['x_bl']))
-					outfile.write('Field[%d].XMax = %f;\n' 
-								  % (box['id'], box['x_tr']))
-					outfile.write('Field[%d].YMin = %f;\n' 
-								  % (box['id'], box['y_bl']))
-					outfile.write('Field[%d].YMax = %f;\n' 
-					 			  % (box['id'], box['y_tr']))
+					   'x_bl': args.boxes[index_box+0], 
+					   'y_bl': args.boxes[index_box+1],
+					   'x_tr': args.boxes[index_box+2], 
+					   'y_tr': args.boxes[index_box+3],
+					   'cl_in': cl_exterior/2.0**args.boxes[index_box+4], 
+					   'cl_out': cl_exterior}
+				write_box(box, outfile)
+				# smooth transition between the box and the exterior
+				while 2.0*box['cl_in'] < cl_exterior:
+					counter_fields += 1
 					# parameters of the box at the next level
-					box['id'] += 1
+					box['id'] = counter_fields
 					box['cl_in'] *= 2.0
-					box['x_bl'] -= (n_level-1)*box['cl_in']
-					box['y_bl'] -= (n_level-1)*box['cl_in']
-					box['x_tr'] += (n_level-1)*box['cl_in']
-					box['y_tr'] += (n_level-1)*box['cl_in']
-					counter_fields +=1
-			# write background field
+					box['x_bl'] -= (n_buffer-1)*box['cl_in']
+					box['y_bl'] -= (n_buffer-1)*box['cl_in']
+					box['x_tr'] += (n_buffer-1)*box['cl_in']
+					box['y_tr'] += (n_buffer-1)*box['cl_in']
+					write_box(box, outfile)
+			# write background field (Min)
+			counter_fields += 1
 			outfile.write('// background field\n')
 			outfile.write('Field[%d] = Min;\n' % (counter_fields))
 			outfile.write('Field[%d].FieldsList = {%s};\n' 
 						  % (counter_fields,
 						     ', '.join([str(i) 
-							 			for i in range(1, counter_fields)])))
+							 			for i in xrange(1, counter_fields)])))
 			outfile.write('Background Field = %d;\n' % (counter_fields))
+		# write physical surfaces
+		outfile.write('// physical surfaces\n')
+		outfile.write('Physical Surface("back") = {%d};\n' % (1))
+		outfile.write('Physical Surface("front") = {%d};\n' % (6*n+26))
+		outfile.write('Physical Surface("inlet") = {%d};\n' % (6*n+13))
+		outfile.write('Physical Surface("outlet") = {%d};\n' % (6*n+21))
+		outfile.write('Physical Surface("bottom") = {%d};\n' % (6*n+25))
+		outfile.write('Physical Surface("top") = {%d};\n' % (6*n+17))
+		outfile.write('Physical Surface("%s") = {%s};\n'
+					  % (args.body_name, 
+					  	 ', '.join([str(i) 
+						 			for i in numpy.arange(2*n+13, 6*n+10, 4)])))
 		# recombine and extrude to get a 3D mesh with 1 cell in 3rd-direction
 		outfile.write('// GMSH parameters\n')
 		outfile.write('Recombine Surface{1} = 0;\n')
