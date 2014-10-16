@@ -111,8 +111,10 @@ def main():
 		# write body points
 		outfile.write('// body points\n')
 		for i in xrange(n):
-			outfile.write('Point(%d) = {%f, %f, 0.0, %f};\n' 
-						  % (i+1, x[i], y[i], cl_body))
+			outfile.write('Point(%d) = {%f, %f, 0.0};\n' 
+						  % (i+1, x[i], y[i]))
+			#outfile.write('Point(%d) = {%f, %f, 0.0, %f};\n' 
+						  #% (i+1, x[i], y[i], cl_body))
 		# write body lines
 		outfile.write('// body lines\n')
 		for i in xrange(n-1):
