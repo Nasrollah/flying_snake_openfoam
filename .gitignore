@@ -6,3 +6,6 @@ validation/*
 
 # ignore test folder
 test/*
+
+# ignore swapping files
+*.swp
