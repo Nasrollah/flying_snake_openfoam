@@ -36,6 +36,9 @@ def read_inputs():
 						help='time-limits to plot force coefficients')
 	parser.add_argument('--cuibm', dest='cuibm_path', type=str, default=None,
 						help='path of cuIBM force coefficients for comparison')
+	parser.add_argument('--kl1995', dest='kl1995', action='store_true',
+						help='plots instantaneous drag coefficient from '
+							 'Koumoutsakos and Leonard (1995)')
 	parser.add_argument('--name', dest='image_name', type=str, 
 						default='force_coefficients',
 						help='name of the file generated (no extension)')
@@ -45,7 +48,11 @@ def read_inputs():
 						help='directories of other cases for comparison')
 	parser.add_argument('--legend', dest='legend', type=str, nargs='+',
 						help='legend for each simulation to plot')
-	parser.set_defaults(save=True)
+	parser.add_argument('--no-lift', dest='lift', action='store_false',
+						help='does not plot the lift coefficients')
+	parser.add_argument('--no-drag', dest='drag', action='store_false',
+						help='does not plot the drag coefficients')
+	parser.set_defaults(save=True, lift=True, drag=True)
 	return parser.parse_args()
 
 
@@ -185,25 +192,38 @@ def plot_coefficients(cases, args):
 	pyplot.xlabel('time', fontsize=16)
 	pyplot.ylabel('force coefficients', fontsize=16)
 	# plot the main OpenFoam force coefficients
-	pyplot.plot(cases['main'].t, cases['main'].cd, 
-				label=r'$C_d$ - %s' % legend['main'], color='r', ls='-', lw=2)
-	pyplot.plot(cases['main'].t, cases['main'].cl, 
-				label=r'$C_l$ - %s' % legend['main'], color='b', ls='-', lw=2)
+	if args.drag:
+		pyplot.plot(cases['main'].t, cases['main'].cd, 
+					label=r'$C_d$ - %s' % legend['main'], 
+					color='r', ls='-', lw=2)
+	if args.lift:
+		pyplot.plot(cases['main'].t, cases['main'].cl, 
+					label=r'$C_l$ - %s' % legend['main'], 
+					color='b', ls='-', lw=2)
 	# plot other OpenFoam force coefficients
-	colors = ['g', 'c', 'm', 'y']
+	colors = ['g', 'c', 'm', 'y', 'k']
 	for i, case in enumerate(cases['others']):
-		pyplot.plot(case.t, case.cd, 
-					label=r'$C_d$ - %s' % legend['others'][i],
-					color=colors[i], ls='-', lw=1)
-		pyplot.plot(case.t, case.cl,
-					label=r'$C_l$ - %s' % legend['others'][i],
-					color=colors[i], ls='--', lw=1)
+		if args.drag:
+			pyplot.plot(case.t, case.cd, 
+						label=r'$C_d$ - %s' % legend['others'][i],
+						color=colors[i], ls='-', lw=1)
+		if args.lift:
+			pyplot.plot(case.t, case.cl,
+						label=r'$C_l$ - %s' % legend['others'][i],
+						color=colors[i], ls='--', lw=1)
 	# plot cuIBM force coefficients
 	if cases['cuibm']:
-		pyplot.plot(cases['cuibm'].t, cases['cuibm'].cd,
-					label=r'$C_d$ - cuIBM', color='k', ls='-', lw=1)
-		pyplot.plot(cases['cuibm'].t, cases['cuibm'].cl,
-					label=r'$C_l$ - cuIBM', color='k', ls='--', lw=1)
+		if args.drag:
+			pyplot.plot(cases['cuibm'].t, cases['cuibm'].cd,
+						label=r'$C_d$ - cuIBM', color='k', ls='-', lw=1)
+		if args.drag:
+			pyplot.plot(cases['cuibm'].t, cases['cuibm'].cl,
+						label=r'$C_l$ - cuIBM', color='k', ls='--', lw=1)
+	# plot Koumoutsakos and Leonard (1995) drag coefficients
+	if args.kl1995:
+		pyplot.plot(cases['kl1995'].t, cases['kl1995'].cd,
+					label=r'$C_d$ - Koumoutsakos and Leonard (1995)', 
+					color='k', lw=0, marker='o', markersize=6)
 	print args.limits
 	x_min = (cases['main'].t[0] if not args.limits else args.limits[0])
 	x_max = (cases['main'].t[-1] if not args.limits else args.limits[1])
@@ -257,6 +277,22 @@ def main():
 	if args.cuibm_path:
 		cases['cuibm'] = CuIBMCase(cases['cuibm'], 
 								   t_start=args.start, t_end=args.end)
+
+	# read drag coefficient from Koumoutsakos and Leonard (1995)
+	if args.kl1995:
+		kl1995_path = ('$FLYING_SNAKE_OPENFOAM/resources/'
+						'cylinder_drag_coefficient_Re550_'
+						'koumoutsakos_leonard_1995.dat')
+		kl1995_path = ('/home/mesnardo/flying_snake_openfoam/resources/'
+						'cylinder_drag_coefficient_Re550_'
+						'koumoutsakos_leonard_1995.dat')
+		cases['kl1995'] = Case(kl1995_path)
+		with open(cases['kl1995'].path, 'r') as infile:
+			cases['kl1995'].t, cases['kl1995'].cd = numpy.loadtxt(infile, 
+																dtype=float,
+																delimiter='\t',
+																unpack=True)
+			cases['kl1995'].t *= 0.5
 
 	# write mean force coefficients and Strouhal numbers in log file
 	if args.save:
