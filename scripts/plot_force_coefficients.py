@@ -6,7 +6,9 @@
 
 
 import os
+import sys
 import argparse
+import logging
 import datetime
 
 import numpy
@@ -53,7 +55,18 @@ def read_inputs():
 	parser.add_argument('--no-drag', dest='drag', action='store_false',
 						help='does not plot the drag coefficients')
 	parser.set_defaults(save=True, lift=True, drag=True)
-	return parser.parse_args()
+	# parse the command-line
+	args = parser.parse_args()
+	# log the command-line arguments
+	if args.save:
+		log_path = '%s/%s.log' % (args.case_directory, 
+								  os.path.basename(__file__))
+		logging.basicConfig(filename=log_path, format='%(message)s', 
+							level=logging.INFO)
+		logging.info('\n\n%s' % str(datetime.datetime.now()))
+		logging.info(' '.join(sys.argv))
+		logging.info(args)
+	return args
 
 
 class Case(object):
@@ -224,7 +237,6 @@ def plot_coefficients(cases, args):
 		pyplot.plot(cases['kl1995'].t, cases['kl1995'].cd,
 					label=r'$C_d$ - Koumoutsakos and Leonard (1995)', 
 					color='k', lw=0, marker='o', markersize=6)
-	print args.limits
 	x_min = (cases['main'].t[0] if not args.limits else args.limits[0])
 	x_max = (cases['main'].t[-1] if not args.limits else args.limits[1])
 	y_min = (-2.0 if not args.limits else args.limits[2])
@@ -250,14 +262,6 @@ def main():
 	"""Plots aerodynamic coefficients."""
 	# parse the command-line
 	args = read_inputs()
-
-	# write list of command-line arguments in a log file
-	log_path = ('%s/%s.log' % (args.case_directory, 
-		  					   os.path.splitext(os.path.basename(__file__))[0]))
-	if args.save:
-		with open(log_path, 'w') as outfile:
-			outfile.write('%s\n%s\n' % (str(datetime.datetime.now()), 
-										str(args)))
 
 	# store case directories
 	cases = {'main': args.case_directory,
@@ -296,17 +300,15 @@ def main():
 
 	# write mean force coefficients and Strouhal numbers in log file
 	if args.save:
-		with open(log_path, 'a') as outfile:
-			outfile.write('\ncase: %s\n' % cases['main'].path)
-			outfile.write('cd = %f\n' % cases['main'].cd_mean)
-			outfile.write('cl = %f\n' % cases['main'].cl_mean)
-			outfile.write('St = %f\n' % cases['main'].strouhal)
-			for case in cases['others']:
-				outfile.write('\ncase: %s\n' % case.path)
-				outfile.write('cd = %f\n' % case.cd_mean)
-				outfile.write('cl = %f\n' % case.cl_mean)
-				outfile.write('St = %f\n' % case.strouhal)
-
+		logging.info('[case] %s' % cases['main'].path)
+		logging.info('\tcd = %f' % cases['main'].cd_mean)
+		logging.info('\tcl = %f' % cases['main'].cl_mean)
+		logging.info('\tSt = %f' % cases['main'].strouhal)
+		for case in cases['others']:
+			logging.info('[case] %s' % case.path)
+			logging.info('\tcd = %f' % case.cd_mean)
+			logging.info('\tcl = %f' % case.cl_mean)
+			logging.info('\tSt = %f' % case.strouhal)
 
 	# plot force coefficients
 	plot_coefficients(cases, args)
