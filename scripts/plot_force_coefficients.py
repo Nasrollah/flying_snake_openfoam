@@ -96,8 +96,12 @@ class Case(object):
 		"""Computes the mean force coefficients."""
 		self.cd_mean = (self.cd[self.i_start:self.i_end].sum()
 						/ self.cd[self.i_start:self.i_end].size)
+		self.cd_max = self.cd[self.i_start:self.i_end].max()
+		self.cd_min = self.cd[self.i_start:self.i_end].min()
 		self.cl_mean = (self.cl[self.i_start:self.i_end].sum()
 						/ self.cl[self.i_start:self.i_end].size)
+		self.cl_max = self.cl[self.i_start:self.i_end].max()
+		self.cl_min = self.cl[self.i_start:self.i_end].min()
 
 	def get_strouhal_number(self):
 		"""Calculates the Strouhal number."""
@@ -301,13 +305,23 @@ def main():
 	# write mean force coefficients and Strouhal numbers in log file
 	if args.save:
 		logging.info('[case] %s' % cases['main'].path)
-		logging.info('\tcd = %f' % cases['main'].cd_mean)
-		logging.info('\tcl = %f' % cases['main'].cl_mean)
+		cd_mean, cl_mean = cases['main'].cd_mean, cases['main'].cl_mean
+		cd_min = cases['main'].cd_mean - cases['main'].cd_min
+		cd_max = cases['main'].cd_max - cases['main'].cd_mean
+		cl_min = cases['main'].cl_mean - cases['main'].cl_min
+		cl_max = cases['main'].cl_max - cases['main'].cl_mean
+		logging.info('\tcd = %f (-%f, +%f)' % (cd_mean, cd_min, cd_max))
+		logging.info('\tcl = %f (-%f, +%f)' % (cl_mean, cl_min, cl_max))
 		logging.info('\tSt = %f' % cases['main'].strouhal)
 		for case in cases['others']:
 			logging.info('[case] %s' % case.path)
-			logging.info('\tcd = %f' % case.cd_mean)
-			logging.info('\tcl = %f' % case.cl_mean)
+			cd_mean, cl_mean = case.cd_mean, case.cl_mean
+			cd_min = case.cd_mean - case.cd_min
+			cd_max = case.cd_max - cases['main'].cd_mean
+			cl_min = case.cl_mean - case.cl_min
+			cl_max = case.cl_max - case.cl_mean
+			logging.info('\tcd = %f (-%f, +%f)' % (cd_mean, cd_min, cd_max))
+			logging.info('\tcl = %f (-%f, +%f)' % (cl_mean, cl_min, cl_max))
 			logging.info('\tSt = %f' % case.strouhal)
 
 	# plot force coefficients
