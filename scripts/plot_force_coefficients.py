@@ -24,23 +24,21 @@ def read_inputs():
 	# fill the parser with arguments
 	parser.add_argument('--case', dest='case_directory', type=str, 
 						default=os.getcwd(),
-						help='directory of the OpenFOAM case')
+						help='directory of the OpenFoam case')
 	parser.add_argument('--show', dest='show', action='store_true',
 						help='displays the aerodynamic coefficients')
-	parser.add_argument('--start', dest='start', type=float, default=None,
-						help='starting-time to compute mean coefficients '
-							 ' and the Strouhal number')
-	parser.add_argument('--end', dest='end', type=float, default=None,
-						help='ending-time to compute mean coefficients '
-							 ' and the Strouhal number')
+	parser.add_argument('--times', dest='times', type=float, nargs='+', 
+						default=[None, None],
+						help='time-interval to compute mean coefficients')
 	parser.add_argument('--limits', dest='limits', type=float, nargs='+',
 						default=[None, None, None, None],
-						help='time-limits to plot force coefficients')
-	parser.add_argument('--cuibm', dest='cuibm_path', type=str, default=None,
-						help='path of cuIBM force coefficients for comparison')
-	parser.add_argument('--kl1995', dest='kl1995', action='store_true',
-						help='plots instantaneous drag coefficient from '
-							 'Koumoutsakos and Leonard (1995)')
+						help='limits of the plot')
+	parser.add_argument('--legend', dest='legend', type=str, nargs='+',
+						help='legend for each simulation to plot')
+	parser.add_argument('--no-lift', dest='lift', action='store_false',
+						help='does not plot the lift coefficients')
+	parser.add_argument('--no-drag', dest='drag', action='store_false',
+						help='does not plot the drag coefficients')
 	parser.add_argument('--name', dest='image_name', type=str, 
 						default='force_coefficients',
 						help='name of the file generated (no extension)')
@@ -48,12 +46,11 @@ def read_inputs():
 						help='does not save the figure as a .png file')
 	parser.add_argument('--compare', dest='other_cases', type=str, nargs='+',
 						help='directories of other cases for comparison')
-	parser.add_argument('--legend', dest='legend', type=str, nargs='+',
-						help='legend for each simulation to plot')
-	parser.add_argument('--no-lift', dest='lift', action='store_false',
-						help='does not plot the lift coefficients')
-	parser.add_argument('--no-drag', dest='drag', action='store_false',
-						help='does not plot the drag coefficients')
+	parser.add_argument('--cuibm', dest='cuibm_path', type=str, default=None,
+						help='path of cuIBM force coefficients for comparison')
+	parser.add_argument('--kl1995', dest='kl1995', action='store_true',
+						help='plots instantaneous drag coefficient from '
+							 'Koumoutsakos and Leonard (1995)')
 	parser.set_defaults(save=True, lift=True, drag=True)
 	# parse the command-line
 	args = parser.parse_args()
@@ -103,6 +100,41 @@ class Case(object):
 		self.cl_max = self.cl[self.i_start:self.i_end].max()
 		self.cl_min = self.cl[self.i_start:self.i_end].min()
 
+	def get_deviations_strouhal(self):
+		"""Computes the positive and negative deviations 
+		around the mean values reached during the last period.
+		"""
+		def get_extremum_indices(x):
+			"""Returns the index of the extrema within a given array.
+			
+			Arguments
+			---------
+			x -- array where extremum indices will be computed.
+
+			Returns
+			-------
+			minima -- index of the minima.
+			maxima -- index of the maxima.
+			"""
+			minima = numpy.where(numpy.r_[True, x[1:] < x[:-1]]
+								 & numpy.r_[x[:-1] < x[1:], True])[0][1:-1]
+			maxima = numpy.where(numpy.r_[True, x[1:] > x[:-1]]
+								 & numpy.r_[x[:-1] > x[1:], True])[0][1:-1]
+			return minima, maxima
+		
+		smoother = 1	# stride to apply to remove possible noise
+		# compute extremum drag coefficients
+		cd = self.cd[self.i_start:self.i_end:smoother]
+		minima, maxima = get_extremum_indices(cd)
+		self.cd_min, self.cd_max = cd[minima[-1]], cd[maxima[-1]]
+		# compute extrumum lift coefficients
+		cl = self.cl[self.i_start:self.i_end:smoother]
+		minima, maxima = get_extremum_indices(cl)
+		self.cl_min, self.cl_max = cl[minima[-1]], cl[maxima[-1]]
+		# calculate the Strouhal number (length=1.0 velocity=1.0)
+		t = self.t[self.i_start:self.i_end:smoother]
+		self.strouhal = 1.0/(t[minima[-1]]-t[minima[-2]])
+
 	def get_strouhal_number(self):
 		"""Calculates the Strouhal number."""
 		spectrum = numpy.fft.fft(self.cl[self.i_start:self.i_end])
@@ -131,7 +163,8 @@ class OpenFoamCase(Case):
 		# compute mean coefficients
 		self.get_time_limits(t_start, t_end)
 		self.get_mean_coefficients()
-		self.get_strouhal_number()
+		#self.get_strouhal_number()
+		self.get_deviations_strouhal()
 
 	def read_coefficients(self):
 		"""Reads force coefficients from files."""
@@ -274,23 +307,22 @@ def main():
 
 	# read coefficients and compute mean values of main OpenFoam simulation
 	cases['main'] = OpenFoamCase(cases['main'], 
-								 t_start=args.start, t_end=args.end)
+								 t_start=args.times[0], t_end=args.times[1])
 
 	# read coefficients and compute mean values of other OpenFoam simulations
 	for i, directory in enumerate(cases['others']):
 		cases['others'][i] = OpenFoamCase(directory, 
-										  t_start=args.start, t_end=args.end)
+										  t_start=args.times[0], 
+										  t_end=args.times[1])
 
 	# read coefficients and compute mean values of cuIBM simulation
 	if args.cuibm_path:
 		cases['cuibm'] = CuIBMCase(cases['cuibm'], 
-								   t_start=args.start, t_end=args.end)
+								   t_start=args.times[0], t_end=args.times[1])
 
 	# read drag coefficient from Koumoutsakos and Leonard (1995)
 	if args.kl1995:
-		kl1995_path = ('$FLYING_SNAKE_OPENFOAM/resources/'
-						'cylinder_drag_coefficient_Re550_'
-						'koumoutsakos_leonard_1995.dat')
+		# path of data file
 		kl1995_path = ('/home/mesnardo/flying_snake_openfoam/resources/'
 						'cylinder_drag_coefficient_Re550_'
 						'koumoutsakos_leonard_1995.dat')
@@ -300,7 +332,7 @@ def main():
 																dtype=float,
 																delimiter='\t',
 																unpack=True)
-			cases['kl1995'].t *= 0.5
+			cases['kl1995'].t *= 0.5	# to use the same time-scale
 
 	# write mean force coefficients and Strouhal numbers in log file
 	if args.save:
@@ -320,7 +352,7 @@ def main():
 			cd_max = case.cd_max - case.cd_mean
 			cl_min = case.cl_mean - case.cl_min
 			cl_max = case.cl_max - case.cl_mean
-			logging.info('\tcd = %f (-%f, +%f)' % (cd_mean, cd_min, cd_max))
+			logging.info('\tcd = %f (%f, +%f)' % (cd_mean, cd_min, cd_max))
 			logging.info('\tcl = %f (-%f, +%f)' % (cl_mean, cl_min, cl_max))
 			logging.info('\tSt = %f' % case.strouhal)
 
