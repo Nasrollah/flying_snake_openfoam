@@ -317,7 +317,7 @@ def main():
 			logging.info('[case] %s' % case.path)
 			cd_mean, cl_mean = case.cd_mean, case.cl_mean
 			cd_min = case.cd_mean - case.cd_min
-			cd_max = case.cd_max - cases['main'].cd_mean
+			cd_max = case.cd_max - case.cd_mean
 			cl_min = case.cl_mean - case.cl_min
 			cl_max = case.cl_max - case.cl_mean
 			logging.info('\tcd = %f (-%f, +%f)' % (cd_mean, cd_min, cd_max))
