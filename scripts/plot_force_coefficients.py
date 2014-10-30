@@ -122,6 +122,10 @@ class Case(object):
 			"""
 			minima = signal.argrelextrema(x, numpy.less, order=5)[0]
 			maxima = signal.argrelextrema(x, numpy.greater, order=5)[0]
+			if minima.size == 0:
+				minima = numpy.array([x.min()])
+			if maxima.size == 0:
+				maxima = numpy.array([x.max()])
 			return minima, maxima
 		
 		# store useful slices
@@ -131,13 +135,14 @@ class Case(object):
 		# compute extremum drag coefficients
 		minima, maxima = get_extremum_indices(cd)
 		self.cd_min, self.cd_max = cd[minima[-1]], cd[maxima[-1]]
-		print '[info] last cd minima: %f\t%f' % (t[minima[-1]], t[minima[-2]]) 
-		# compute extrumum lift coefficients
+		# compute extremum lift coefficients
 		minima, maxima = get_extremum_indices(cl)
 		self.cl_min, self.cl_max = cl[minima[-1]], cl[maxima[-1]]
-		print '[info] last cl minima: %f\t%f' % (t[minima[-1]], t[minima[-2]]) 
 		# calculate the Strouhal number (chord-length=1.0 velocity=1.0)
-		self.strouhal = 1.0/(t[minima[-1]]-t[minima[-2]])
+		if minima.size > 1:
+			self.strouhal = 1.0/(t[minima[-1]]-t[minima[-2]])
+		else:
+			self.strouhal = 0.0
 
 	def get_strouhal_number_old(self):
 		"""Calculates the Strouhal number."""
