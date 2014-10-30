@@ -93,16 +93,19 @@ class Case(object):
 		"""Computes the mean force coefficients."""
 		self.cd_mean = (self.cd[self.i_start:self.i_end].sum()
 						/ self.cd[self.i_start:self.i_end].size)
-		self.cd_max = self.cd[self.i_start:self.i_end].max()
-		self.cd_min = self.cd[self.i_start:self.i_end].min()
 		self.cl_mean = (self.cl[self.i_start:self.i_end].sum()
 						/ self.cl[self.i_start:self.i_end].size)
+
+	def get_extremum_coefficients_old(self):
+		"""Computes the extrema of the force coefficients."""
+		self.cd_max = self.cd[self.i_start:self.i_end].max()
+		self.cd_min = self.cd[self.i_start:self.i_end].min()
 		self.cl_max = self.cl[self.i_start:self.i_end].max()
 		self.cl_min = self.cl[self.i_start:self.i_end].min()
 
-	def get_deviations_strouhal(self):
-		"""Computes the positive and negative deviations 
-		around the mean values reached during the last period.
+	def get_extremum_coefficients(self):
+		"""Computes the extrema of the force coefficients 
+		reached during the last period and computes the Strouhal number.
 		"""
 		def get_extremum_indices(x):
 			"""Returns the index of the extrema within a given array.
@@ -122,20 +125,23 @@ class Case(object):
 								 & numpy.r_[x[:-1] > x[1:], True])[0][1:-1]
 			return minima, maxima
 		
-		smoother = 1	# stride to apply to remove possible noise
-		# compute extremum drag coefficients
+		smoother = 3	# stride to apply to remove possible noise
+		# store useful slices
 		cd = self.cd[self.i_start:self.i_end:smoother]
+		cl = self.cl[self.i_start:self.i_end:smoother]
+		t = self.t[self.i_start:self.i_end:smoother]
+		# compute extremum drag coefficients
 		minima, maxima = get_extremum_indices(cd)
 		self.cd_min, self.cd_max = cd[minima[-1]], cd[maxima[-1]]
+		print '[info] last cd minima: %f\t%f' % (t[minima[-1]], t[minima[-2]]) 
 		# compute extrumum lift coefficients
-		cl = self.cl[self.i_start:self.i_end:smoother]
 		minima, maxima = get_extremum_indices(cl)
 		self.cl_min, self.cl_max = cl[minima[-1]], cl[maxima[-1]]
-		# calculate the Strouhal number (length=1.0 velocity=1.0)
-		t = self.t[self.i_start:self.i_end:smoother]
+		print '[info] last cl minima: %f\t%f' % (t[minima[-1]], t[minima[-2]]) 
+		# calculate the Strouhal number (chord-length=1.0 velocity=1.0)
 		self.strouhal = 1.0/(t[minima[-1]]-t[minima[-2]])
 
-	def get_strouhal_number(self):
+	def get_strouhal_number_old(self):
 		"""Calculates the Strouhal number."""
 		spectrum = numpy.fft.fft(self.cl[self.i_start:self.i_end])
 		dt = self.t[self.i_start+1] - self.t[self.i_start]
@@ -163,8 +169,8 @@ class OpenFoamCase(Case):
 		# compute mean coefficients
 		self.get_time_limits(t_start, t_end)
 		self.get_mean_coefficients()
-		#self.get_strouhal_number()
-		self.get_deviations_strouhal()
+		# compute extrema and Strouhal number
+		self.get_extremum_coefficients()
 
 	def read_coefficients(self):
 		"""Reads force coefficients from files."""
@@ -352,7 +358,7 @@ def main():
 			cd_max = case.cd_max - case.cd_mean
 			cl_min = case.cl_mean - case.cl_min
 			cl_max = case.cl_max - case.cl_mean
-			logging.info('\tcd = %f (%f, +%f)' % (cd_mean, cd_min, cd_max))
+			logging.info('\tcd = %f (-%f, +%f)' % (cd_mean, cd_min, cd_max))
 			logging.info('\tcl = %f (-%f, +%f)' % (cl_mean, cl_min, cl_max))
 			logging.info('\tSt = %f' % case.strouhal)
 
