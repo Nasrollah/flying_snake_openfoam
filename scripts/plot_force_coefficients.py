@@ -12,6 +12,7 @@ import logging
 import datetime
 
 import numpy
+from scipy import signal
 from matplotlib import pyplot
 
 
@@ -119,17 +120,14 @@ class Case(object):
 			minima -- index of the minima.
 			maxima -- index of the maxima.
 			"""
-			minima = numpy.where(numpy.r_[True, x[1:] < x[:-1]]
-								 & numpy.r_[x[:-1] < x[1:], True])[0][1:-1]
-			maxima = numpy.where(numpy.r_[True, x[1:] > x[:-1]]
-								 & numpy.r_[x[:-1] > x[1:], True])[0][1:-1]
+			minima = signal.argrelextrema(x, numpy.less, order=5)[0]
+			maxima = signal.argrelextrema(x, numpy.greater, order=5)[0]
 			return minima, maxima
 		
-		smoother = 3	# stride to apply to remove possible noise
 		# store useful slices
-		cd = self.cd[self.i_start:self.i_end:smoother]
-		cl = self.cl[self.i_start:self.i_end:smoother]
-		t = self.t[self.i_start:self.i_end:smoother]
+		t = self.t[self.i_start:self.i_end]
+		cd = self.cd[self.i_start:self.i_end]
+		cl = self.cl[self.i_start:self.i_end]
 		# compute extremum drag coefficients
 		minima, maxima = get_extremum_indices(cd)
 		self.cd_min, self.cd_max = cd[minima[-1]], cd[maxima[-1]]
