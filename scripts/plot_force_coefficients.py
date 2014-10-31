@@ -135,9 +135,15 @@ class Case(object):
 		# compute extremum drag coefficients
 		minima, maxima = get_extremum_indices(cd)
 		self.cd_min, self.cd_max = cd[minima[-1]], cd[maxima[-1]]
+		if minima.size > 1:
+			self.cd_mean = (cd[minima[-2]:minima[-1]].sum()
+							/cd[minima[-2]:minima[-1]].size)
 		# compute extremum lift coefficients
 		minima, maxima = get_extremum_indices(cl)
 		self.cl_min, self.cl_max = cl[minima[-1]], cl[maxima[-1]]
+		if minima.size > 1:
+			self.cl_mean = (cl[minima[-2]:minima[-1]].sum()
+							/cl[minima[-2]:minima[-1]].size)
 		# calculate the Strouhal number (chord-length=1.0 velocity=1.0)
 		if minima.size > 1:
 			self.strouhal = 1.0/(t[minima[-1]]-t[minima[-2]])
