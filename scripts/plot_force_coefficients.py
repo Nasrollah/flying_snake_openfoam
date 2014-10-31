@@ -78,16 +78,18 @@ class Case(object):
 		"""
 		self.path = path
 
-	def get_time_limits(self, t_start, t_end):
+	def get_limit_indices(self, t_start, t_end):
 		"""Computes the time-limits and their indices in the time array.
 		
 		Arguments
 		---------
 		t_start, t_end -- time-limits to compute mean coefficients and Strouhal.
 		"""
-		self.t_start = (self.t[0] if not t_start else t_start)
-		self.t_end = (self.t[-1] if not t_end else t_end)
-		self.i_start = numpy.where(self.t >= self.t_start)[0][0]
+		if not t_start:
+			t_start = self.t[0]
+		if not t_end:
+			t_end = self.t[1]
+		self.i_start = numpy.where(self.t >= t_start)[0][0]
 		self.i_end = numpy.where(self.t >= t_end)[0][0]-1
 
 	def get_mean_coefficients(self):
@@ -103,6 +105,34 @@ class Case(object):
 		self.cd_min = self.cd[self.i_start:self.i_end].min()
 		self.cl_max = self.cl[self.i_start:self.i_end].max()
 		self.cl_min = self.cl[self.i_start:self.i_end].min()
+
+	def get_extremum_coefficients(self, t_start, t_end):
+		if not (t_start and t_end):
+			def get_extremum_indices(x):
+				minima = signal.argrelextrema(x, numpy.less, order=5)[0]
+				maxima = signal.argrelextrema(x, numpy.greater, order=5)[0]
+				return minima, maxima
+			# use minima and maxima
+			self.cd_minima = signal.argrelextrema(self.cd, 
+												  numpy.less, order=5)[0]
+			self.cd_min = self.cd[self.cd_minima[-1]]
+			self.cd_maxima = signal.argrelextrema(self.cd, 
+												  numpy.greater, order=5)[0]
+			self.cd_max = self.cd[self.cd_maxima[-1]]
+			self.cl_minima = signal.argrelextrema(self.cl, 
+												  numpy.less, order=5)[0]
+			self.cl_min = self.cl[self.cl_minima[-1]]
+			self.cl_maxima = signal.argrelextrema(self.cl, 
+												  numpy.greater, order=5)[0]
+			self.cl_max = self.cl[self.cl_maxima[-1]]
+		else:
+			i_start = numpy.where(self.t >= t_start)[0][0]
+			i_end = numpy.where(self.t >= t_end)[0][0]-1
+			# compute extremum coefficients
+			self.cd_max = self.cd[i_start:i_end].max()
+			self.cd_min = self.cd[i_start:i_end].min()
+			self.cl_max = self.cl[i_start:i_end].max()
+			self.cl_min = self.cl[i_start:i_end].min()
 
 	def get_extremum_coefficients(self):
 		"""Computes the extrema of the force coefficients 
