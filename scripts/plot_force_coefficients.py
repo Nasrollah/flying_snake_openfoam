@@ -85,12 +85,12 @@ class Case(object):
 		---------
 		t_start, t_end -- time-limits to compute mean coefficients and Strouhal.
 		"""
-		if not t_start:
-			t_start = self.t[0]
-		if not t_end:
-			t_end = self.t[1]
-		self.i_start = numpy.where(self.t >= t_start)[0][0]
-		self.i_end = numpy.where(self.t >= t_end)[0][0]-1
+		if t_start and t_end:
+			self.i_start = numpy.where(self.t >= t_start)[0][0]
+			self.i_end = numpy.where(self.t >= t_end)[0][0]-1
+		else:
+			minima = signal.argrelextrema(self.cl, numpy.less, order=5)[0]
+			self.i_start, self.i_end = minima[-2], minima[-1]
 
 	def get_mean_coefficients(self):
 		"""Computes the mean force coefficients."""
@@ -99,96 +99,34 @@ class Case(object):
 		self.cl_mean = (self.cl[self.i_start:self.i_end].sum()
 						/ self.cl[self.i_start:self.i_end].size)
 
-	def get_extremum_coefficients_old(self):
+	def get_extremum_coefficients(self):
 		"""Computes the extrema of the force coefficients."""
 		self.cd_max = self.cd[self.i_start:self.i_end].max()
 		self.cd_min = self.cd[self.i_start:self.i_end].min()
 		self.cl_max = self.cl[self.i_start:self.i_end].max()
 		self.cl_min = self.cl[self.i_start:self.i_end].min()
-
-	def get_extremum_coefficients(self, t_start, t_end):
-		if not (t_start and t_end):
-			def get_extremum_indices(x):
-				minima = signal.argrelextrema(x, numpy.less, order=5)[0]
-				maxima = signal.argrelextrema(x, numpy.greater, order=5)[0]
-				return minima, maxima
-			# use minima and maxima
-			self.cd_minima = signal.argrelextrema(self.cd, 
-												  numpy.less, order=5)[0]
-			self.cd_min = self.cd[self.cd_minima[-1]]
-			self.cd_maxima = signal.argrelextrema(self.cd, 
-												  numpy.greater, order=5)[0]
-			self.cd_max = self.cd[self.cd_maxima[-1]]
-			self.cl_minima = signal.argrelextrema(self.cl, 
-												  numpy.less, order=5)[0]
-			self.cl_min = self.cl[self.cl_minima[-1]]
-			self.cl_maxima = signal.argrelextrema(self.cl, 
-												  numpy.greater, order=5)[0]
-			self.cl_max = self.cl[self.cl_maxima[-1]]
-		else:
-			i_start = numpy.where(self.t >= t_start)[0][0]
-			i_end = numpy.where(self.t >= t_end)[0][0]-1
-			# compute extremum coefficients
-			self.cd_max = self.cd[i_start:i_end].max()
-			self.cd_min = self.cd[i_start:i_end].min()
-			self.cl_max = self.cl[i_start:i_end].max()
-			self.cl_min = self.cl[i_start:i_end].min()
-
-	def get_extremum_coefficients(self):
-		"""Computes the extrema of the force coefficients 
-		reached during the last period and computes the Strouhal number.
-		"""
-		def get_extremum_indices(x):
-			"""Returns the index of the extrema within a given array.
-			
-			Arguments
-			---------
-			x -- array where extremum indices will be computed.
-
-			Returns
-			-------
-			minima -- index of the minima.
-			maxima -- index of the maxima.
-			"""
-			minima = signal.argrelextrema(x, numpy.less, order=5)[0]
-			maxima = signal.argrelextrema(x, numpy.greater, order=5)[0]
-			if minima.size == 0:
-				minima = numpy.array([x.min()])
-			if maxima.size == 0:
-				maxima = numpy.array([x.max()])
-			return minima, maxima
+	
+	def get_strouhal_number(self, is_strouhal):
+		"""Computes the Strouhal number.
 		
-		# store useful slices
-		t = self.t[self.i_start:self.i_end]
-		cd = self.cd[self.i_start:self.i_end]
-		cl = self.cl[self.i_start:self.i_end]
-		# compute extremum drag coefficients
-		minima, maxima = get_extremum_indices(cd)
-		self.cd_min, self.cd_max = cd[minima[-1]], cd[maxima[-1]]
-		if minima.size > 1:
-			self.cd_mean = (cd[minima[-2]:minima[-1]].sum()
-							/cd[minima[-2]:minima[-1]].size)
-		# compute extremum lift coefficients
-		minima, maxima = get_extremum_indices(cl)
-		self.cl_min, self.cl_max = cl[minima[-1]], cl[maxima[-1]]
-		if minima.size > 1:
-			self.cl_mean = (cl[minima[-2]:minima[-1]].sum()
-							/cl[minima[-2]:minima[-1]].size)
-		# calculate the Strouhal number (chord-length=1.0 velocity=1.0)
-		if minima.size > 1:
-			self.strouhal = 1.0/(t[minima[-1]]-t[minima[-2]])
-		else:
-			self.strouhal = 0.0
+		Arguments
+		---------
+		is_strouhal -- boolean to compute or not the Strouhal number.
+		"""
+		self.strouhal = 0.0
+		if is_strouhal:
+			self.strouhal = 1.0/(self.t[self.i_end] - self.t[self.i_start])
 
-	def get_strouhal_number_old(self):
-		"""Calculates the Strouhal number."""
-		spectrum = numpy.fft.fft(self.cl[self.i_start:self.i_end])
-		dt = self.t[self.i_start+1] - self.t[self.i_start]
-		frequencies = numpy.fft.fftfreq(spectrum.size, dt)
-		mask = frequencies > 0.0
-		peaks = frequencies[mask]
-		magns = numpy.absolute(spectrum[mask])
-		self.strouhal =  peaks[numpy.argmax(magns)]
+	def write_log_file(self):
+		"""Writes info about force coefficients into the log file."""
+		logging.info('[case] %s' % self.path)
+		logging.info('\tcd = %f (-%f, +%f)' % (self.cd_mean, 
+											   abs(self.cd_mean - self.cd_min), 
+											   abs(self.cd_mean - self.cd_max)))
+		logging.info('\tcl = %f (-%f, +%f)' % (self.cl_mean, 
+											   abs(self.cl_mean - self.cl_min), 
+											   abs(self.cl_mean - self.cl_max)))
+		logging.info('\tSt = %f' % self.strouhal)
 
 
 class OpenFoamCase(Case):
@@ -205,11 +143,14 @@ class OpenFoamCase(Case):
 		Case.__init__(self, directory)
 		# read force coefficients
 		self.read_coefficients()
+		# compute time-interval indices
+		self.get_limit_indices(t_start, t_end)
 		# compute mean coefficients
-		self.get_time_limits(t_start, t_end)
 		self.get_mean_coefficients()
-		# compute extrema and Strouhal number
+		# compute extrema coefficients
 		self.get_extremum_coefficients()
+		# compute Strouhal number
+		self.get_strouhal_number((True if t_start == None else False))
 
 	def read_coefficients(self):
 		"""Reads force coefficients from files."""
@@ -245,9 +186,14 @@ class CuIBMCase(Case):
 		Case.__init__(self, path)
 		# read force coefficients
 		self.read_coefficients()
+		# compute time-interval indices
+		self.get_limit_indices(t_start, t_end)
 		# compute mean coefficients
-		self.get_time_limits(t_start, t_end)
 		self.get_mean_coefficients()
+		# compute extrema coefficients
+		self.get_extremum_coefficients()
+		# compute Strouhal number
+		self.get_strouhal_number((True if t_start == None else False))
 
 	def read_coefficients(self):
 		"""Reads force coefficients from cuIBM results."""
@@ -259,7 +205,24 @@ class CuIBMCase(Case):
 		# cuIBM script does not include the coefficient 2.0
 		self.cd *= 2.0
 		self.cl *= 2.0
-		
+
+
+class KL1995Case(Case):
+	"""Contain drag coefficient results from Koumoutsakos and Leonard (1995)."""
+	def __init__(self, path):
+		"""Get instantaneous drag coefficient 
+		reported by Koumoutsakos and Leonard (1995).
+		"""
+		Case.__init__(self, path)
+		self.read_drag_coefficients()
+
+	def read_drag_coefficients(self):
+		"""Reads and stores the intantaneous drag coefficient."""
+		with open(self.path, 'r') as infile:
+			self.t, self.cd = numpy.loadtxt(infile, dtype=float, delimiter='\t',
+											unpack=True)
+			self.t *= 0.5	# to use the same time-scale
+
 
 def plot_coefficients(cases, args):
 	"""Plots force coefficients from different simulations.
@@ -296,7 +259,7 @@ def plot_coefficients(cases, args):
 					label=r'$C_l$ - %s' % legend['main'], 
 					color='b', ls='-', lw=2)
 	# plot other OpenFoam force coefficients
-	colors = ['g', 'c', 'm', 'y', 'k']
+	colors = ['g', 'c', 'm', 'y']
 	for i, case in enumerate(cases['others']):
 		if args.drag:
 			pyplot.plot(case.t, case.cd, 
@@ -319,15 +282,17 @@ def plot_coefficients(cases, args):
 		pyplot.plot(cases['kl1995'].t, cases['kl1995'].cd,
 					label=r'$C_d$ - Koumoutsakos and Leonard (1995)', 
 					color='k', lw=0, marker='o', markersize=6)
+	# define limits of the figure
 	x_min = (cases['main'].t[0] if not args.limits else args.limits[0])
 	x_max = (cases['main'].t[-1] if not args.limits else args.limits[1])
 	y_min = (-2.0 if not args.limits else args.limits[2])
 	y_max = (+2.0 if not args.limits else args.limits[3])
 	pyplot.xlim(x_min, x_max)
 	pyplot.ylim(y_min, y_max)
+	# add legend to the figure
 	pyplot.legend(loc='upper left', prop={'size': 'small'},
 						bbox_to_anchor=(1.0,1.0))
-	# save the figure as a .png file
+	# save the figure as a .PNG file
 	if args.save:
 		# create images folder if not existing
 		images_directory = '%s/images' % args.case_directory
@@ -371,35 +336,13 @@ def main():
 		kl1995_path = ('/home/mesnardo/flying_snake_openfoam/resources/'
 						'cylinder_drag_coefficient_Re550_'
 						'koumoutsakos_leonard_1995.dat')
-		cases['kl1995'] = Case(kl1995_path)
-		with open(cases['kl1995'].path, 'r') as infile:
-			cases['kl1995'].t, cases['kl1995'].cd = numpy.loadtxt(infile, 
-																dtype=float,
-																delimiter='\t',
-																unpack=True)
-			cases['kl1995'].t *= 0.5	# to use the same time-scale
+		cases['kl1995'] = KL1995Case(kl1995_path)
 
 	# write mean force coefficients and Strouhal numbers in log file
 	if args.save:
-		logging.info('[case] %s' % cases['main'].path)
-		cd_mean, cl_mean = cases['main'].cd_mean, cases['main'].cl_mean
-		cd_min = cases['main'].cd_mean - cases['main'].cd_min
-		cd_max = cases['main'].cd_max - cases['main'].cd_mean
-		cl_min = cases['main'].cl_mean - cases['main'].cl_min
-		cl_max = cases['main'].cl_max - cases['main'].cl_mean
-		logging.info('\tcd = %f (-%f, +%f)' % (cd_mean, cd_min, cd_max))
-		logging.info('\tcl = %f (-%f, +%f)' % (cl_mean, cl_min, cl_max))
-		logging.info('\tSt = %f' % cases['main'].strouhal)
+		cases['main'].write_log_file()
 		for case in cases['others']:
-			logging.info('[case] %s' % case.path)
-			cd_mean, cl_mean = case.cd_mean, case.cl_mean
-			cd_min = case.cd_mean - case.cd_min
-			cd_max = case.cd_max - case.cd_mean
-			cl_min = case.cl_mean - case.cl_min
-			cl_max = case.cl_max - case.cl_mean
-			logging.info('\tcd = %f (-%f, +%f)' % (cd_mean, cd_min, cd_max))
-			logging.info('\tcl = %f (-%f, +%f)' % (cl_mean, cl_min, cl_max))
-			logging.info('\tSt = %f' % case.strouhal)
+			case.write_log_file()
 
 	# plot force coefficients
 	plot_coefficients(cases, args)
