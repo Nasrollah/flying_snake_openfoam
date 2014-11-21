@@ -25,12 +25,19 @@ def read_inputs():
 	parser.add_argument('--case', dest='case_directory', type=str,
 						default=os.getcwd(),
 						help='directory of the OpenFoam case')
+	parser.add_argument('--times', dest='times', type=float, nargs='+',
+						default=[None, None],
+						help='time-limits to be analyzed')
 	parser.add_argument('--limits-cd', dest='limits_cd', type=float, nargs='+',
-						default=[None, None, 1.36, 1.39],
-						help='limits to plot the drag coefficient')
+						default=[1.36, 1.39],
+						help='y-limits to plot the drag coefficient')
 	parser.add_argument('--limits-cl', dest='limits_cl', type=float, nargs='+',
-						default=[None, None, -0.40, 0.40],
-						help='limits to plot the lift coefficient')
+						default=[-0.40, 0.40],
+						help='y-limits to plot the lift coefficient')
+	parser.add_argument('--order', dest='order', type=int, default=5,
+						help='number of neighbors to use for comparison when '
+							 'calculating the extrema of an instantaneous '
+							 'force coefficient')
 	parser.add_argument('--no-frequency', dest='plot_frequency', 
 						action='store_false',
 						help='does not plot the frequency of the force')
@@ -48,13 +55,14 @@ def read_inputs():
 	return parser.parse_args()
 
 
-def read_force_coefficients(case_directory):
+def read_force_coefficients(case_directory, times):
 	"""Reads the instantaneous force coefficients from a given OpenFoam 
 	simulation directory.
 	
 	Arguments
 	---------
 	case_directory -- directory of the simulation folder.
+	times -- time-boundaries to be analyzed.
 
 	Returns
 	-------
@@ -74,7 +82,10 @@ def read_force_coefficients(case_directory):
 		t = numpy.append(t, t_tmp)
 		cd = numpy.append(cd, cd_tmp)
 		cl = numpy.append(cl, cl_tmp)
-	return t, cd, cl
+	# keep necessary slice of arrays
+	i_start = (0 if not times[0] else numpy.where(t == times[0])[0][0])
+	i_end = (-1 if not times[1] else numpy.where(t == times[1])[0][-1])
+	return t[i_start:i_end], cd[i_start:i_end], cl[i_start:i_end]
 
 
 class ForceCoefficient:
@@ -92,12 +103,20 @@ class ForceCoefficient:
 		self.t = t
 		self.f = f
 
-	def get_extrema_indices(self):
-		"""Computes extrema indices of the force coefficient."""
+	def get_extrema_indices(self, order=5):
+		"""Computes extrema indices of the force coefficient.
+		
+		Arguments
+		---------
+		order -- number of points on each side to use 
+				 for the comparison (default: 5).
+		"""
 		self.minima = signal.argrelextrema(self.f, 
-										   numpy.less_equal, order=5)[0][:-1]
+										   numpy.less_equal, 
+										   order=order)[0][:-1]
 		self.maxima = signal.argrelextrema(self.f, 
-										   numpy.greater_equal, order=5)[0][:-1]
+										   numpy.greater_equal, 
+										   order=order)[0][:-1]
 		# remove close values
 		self.minima = numpy.delete(self.minima, 
 								   [i+1 for i in xrange(self.minima.size-1) 
@@ -133,13 +152,13 @@ class ForceCoefficient:
 		print 'mean: %.6f' % self.last_mean
 		print 'Strouhal: %.6f\n' % self.strouhal
 
-	def plot(self, args, limits=[None, None, None, None]):
+	def plot(self, args, limits=[None, None]):
 		"""Plots the instantaneous force coefficients and its peaks.
 		
 		Arguments
 		---------
 		args -- command-line arguments.
-		limits -- limits of the plot (default: [None, None, None, None]).
+		limits -- limits of the plot (default: [None, None]).
 		"""
 		fig, ax1 = pyplot.subplots()
 		ax1.set_xlabel(r'$t$', fontsize=18)
@@ -164,8 +183,7 @@ class ForceCoefficient:
 					 color='b', lw=0, marker='o', markersize=6)
 			ax1.axhline(self.f[self.maxima[-1]], label=None,
 						color='b', lw=1, ls='--')
-		ax1.set_xlim(limits[0],limits[1])
-		ax1.set_ylim(limits[2], limits[3])
+		ax1.set_ylim(limits[0], limits[1])
 		ax1.legend(loc='upper left', prop={'size': 12})
 		# periods
 		if args.plot_frequency:
@@ -183,16 +201,16 @@ class ForceCoefficient:
 				os.makedirs(images_directory)
 			pyplot.savefig('%s/analyze%s.png' % (images_directory, self.name))
 
-	def analyze(self, args, limits=[None, None, None, None]):
+	def analyze(self, args, limits=[None, None]):
 		"""Computes means, periods, Strouhal number and plots the resuls in a 
 		figure.
 		
 		Arguments
 		---------
 		args -- command-line arguments
-		limits -- limits of the plot (default: [None, None, None, None]).
+		limits -- limits of the plot (default: [None, None]).
 		"""
-		self.get_extrema_indices()
+		self.get_extrema_indices(args.order)
 		self.get_periods()
 		self.get_means()
 		self.print_info()
@@ -207,7 +225,7 @@ def main():
 	print '\n[case] %s' % args.case_directory
 
 	# read force coefficients
-	t, cd, cl = read_force_coefficients(args.case_directory)
+	t, cd, cl = read_force_coefficients(args.case_directory, args.times)
 
 	# create force coefficient objects
 	cd = ForceCoefficient('Cd', t, cd)
