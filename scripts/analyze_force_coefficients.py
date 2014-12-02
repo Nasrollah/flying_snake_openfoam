@@ -129,7 +129,7 @@ class ForceCoefficient:
 		"""Calculates the periods over the time of the simulation 
 		using the minima, and computes the Strouhal number reached.
 		"""
-		self.periods = numpy.empty(self.minima.size-2, dtype=float)
+		self.periods = numpy.empty(self.minima.size-1, dtype=float)
 		for i in xrange(self.periods.size):
 			self.periods[i] = self.t[self.minima[i+1]] - self.t[self.minima[i]]
 		self.last_period = self.periods[-1]
@@ -139,7 +139,7 @@ class ForceCoefficient:
 		"""Computes the mean coefficient over each period using the minima,
 		and stores the last mean coefficient reached.
 		"""
-		self.means = numpy.empty(self.minima.size-2, dtype=float)
+		self.means = numpy.empty(self.minima.size-1, dtype=float)
 		for i in xrange(self.means.size):
 			slice_f = self.f[self.minima[i]:self.minima[i+1]]
 			self.means[i] = (self.f[self.minima[i]:self.minima[i+1]].sum() 
@@ -166,7 +166,7 @@ class ForceCoefficient:
 		ax1.plot(self.t, self.f, label=self.name, color='k', lw=1, ls='-')
 		# means
 		if args.plot_mean:
-			t_half = 0.5 * (self.t[self.minima[:-2]]+self.t[self.minima[1:-1]])
+			t_half = 0.5 * (self.t[self.minima[:-1]]+self.t[self.minima[1:]])
 			ax1.plot(t_half, self.means, label='mean', 
 				 	 color='r', lw=0, marker='o', markersize=6)
 			ax1.axhline(self.last_mean, label=None, 
@@ -191,7 +191,7 @@ class ForceCoefficient:
 			ax2.set_ylabel('Strouhal', color='m', fontsize=16)
 			ax2.plot(t_half, 1.0/self.periods, 
 					 color='m', lw=0, marker='o', markersize=6)
-			ax2.axhline(self.last_period, color='m', lw=1, ls='--')
+			ax2.axhline(self.strouhal, color='m', lw=1, ls='--')
 			ax2.set_ylim(0.9*self.strouhal, 1.1*self.strouhal)
 		# save the plot
 		if args.save:
