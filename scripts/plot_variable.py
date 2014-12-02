@@ -27,7 +27,7 @@ def read_inputs():
 	parser.add_argument('--vorticity-limit', '-vl', dest='vorticity_limit', 
 						type=float, default=5.0,
 						help='upper limit of zero-symmetric vorticity range')
-	parser.add_argument('--pressure-limit', '-pl', dest='pressure_limit', 
+	parser.add_argument('--pressure-limits', '-pl', dest='pressure_limits', 
 						type=float, nargs='+', default=[-1.0, 0.5],
 						help='limits of pressure range')
 	parser.add_argument('--times', dest='times', type=float, nargs='+',
@@ -90,7 +90,7 @@ def main():
 	flying_snake = PV3FoamReader(FileName=('%s/%s' 
 										   % (args.case_directory, 
 										   	  of_file_name)))
-	flying_snake.VolumeFields = ['p', 'U']
+	flying_snake.VolumeFields = ['p', 'U', 'vorticity']
 	flying_snake.MeshParts = ['front - patch']
 
 	# get the limits of the plot and the width of the figure
@@ -121,17 +121,10 @@ def main():
 	Render()
 
 	if args.variable == 'vorticity':
-		# compute the vorticity
-		compute_derivatives = ComputeDerivatives()
-		compute_derivatives.Scalars = ['POINTS', 'p']
-		compute_derivatives.Vectors = ['POINTS', 'U']
-		compute_derivatives.OutputTensorType = 'Nothing'
-		compute_derivatives.OutputVectorType = 'Vorticity'
-		
 		# edit color-map
-		vorticity_min = -args.vorticity_limit
-		vorticity_max = +args.vorticity_limit
-		PVLookupTable = GetLookupTableForArray('Vorticity', 3, 
+		vorticity_min = float("{0:.2f}".format(-args.vorticity_limit))
+		vorticity_max = float("{0:.2f}".format(+args.vorticity_limit))
+		PVLookupTable = GetLookupTableForArray('vorticity', 3, 
 											   RGBPoints=[vorticity_min, 
 											   			  0.0, 0.0, 1.0, 
 							   			   	   			  vorticity_max, 
@@ -144,8 +137,8 @@ def main():
 											   LockScalarRange=1)
 	elif args.variable == 'pressure':
 		# edit color-map
-		pressure_min = float("{0:.2f}".format(args.pressure_limit[0]))
-		pressure_max = float("{0:.2f}".format(args.pressure_limit[1]))
+		pressure_min = float("{0:.2f}".format(args.pressure_limits[0]))
+		pressure_max = float("{0:.2f}".format(args.pressure_limits[1]))
 		PVLookupTable = GetLookupTableForArray('p', 1,
 											   RGBPoints=[pressure_min,
 											   		      0.0, 0.0, 1.0,
@@ -172,7 +165,7 @@ def main():
 	# show the  field
 	data_representation = Show()
 	if args.variable == 'vorticity':
-		array_name = 'Vorticity'
+		array_name = 'vorticity'
 	elif args.variable == 'pressure':
 		array_name = 'p'
 	data_representation.ColorArrayName = array_name
