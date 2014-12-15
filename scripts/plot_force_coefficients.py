@@ -89,7 +89,7 @@ class Case(object):
 			self.i_start = numpy.where(self.t >= t_start)[0][0]
 			self.i_end = numpy.where(self.t >= t_end)[0][0]-1
 		else:
-			minima = signal.argrelextrema(self.cl, numpy.less, order=5)[0]
+			minima = signal.argrelextrema(self.cl, numpy.less, order=20)[0]
 			self.i_start, self.i_end = minima[-2], minima[-1]
 
 	def get_mean_coefficients(self):
@@ -343,6 +343,8 @@ def main():
 		cases['main'].write_log_file()
 		for case in cases['others']:
 			case.write_log_file()
+		if args.cuibm_path:
+			cases['cuibm'].write_log_file()
 
 	# plot force coefficients
 	plot_coefficients(cases, args)
