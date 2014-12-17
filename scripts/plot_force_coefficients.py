@@ -122,6 +122,19 @@ class Case(object):
 		if is_strouhal:
 			self.strouhal = 1.0/(self.t[self.i_end] - self.t[self.i_start])
 
+	def print_info(self):
+		"""Prints info such as the path, the mean coefficients and the 
+		Strouhal number.
+		"""
+		print '\n[case] %s' % self.path
+		print '\tcd = %f (-%f, +%f)' % (self.cd_mean, 
+										abs(self.cd_mean - self.cd_min), 
+										abs(self.cd_mean - self.cd_max))
+		print '\tcl = %f (-%f, +%f)' % (self.cl_mean, 
+										abs(self.cl_mean - self.cl_min), 
+										abs(self.cl_mean - self.cl_max))
+		print '\tSt = %f' % self.strouhal
+
 	def write_log_file(self):
 		"""Writes info about force coefficients into the log file."""
 		logging.info('[case] %s' % self.path)
@@ -157,6 +170,8 @@ class OpenFoamCase(Case):
 		self.get_extremum_coefficients()
 		# compute Strouhal number
 		self.get_strouhal_number((True if t_start == None else False))
+		# print info
+		self.print_info()
 
 	def read_coefficients(self):
 		"""Reads force coefficients from files."""
@@ -201,6 +216,8 @@ class CuIBMCase(Case):
 		self.get_extremum_coefficients()
 		# compute Strouhal number
 		self.get_strouhal_number((True if t_start == None else False))
+		# print info
+		self.print_info()
 
 	def read_coefficients(self):
 		"""Reads force coefficients from cuIBM results."""
