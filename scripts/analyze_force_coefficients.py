@@ -111,19 +111,13 @@ class ForceCoefficient:
 		order -- number of points on each side to use 
 				 for the comparison (default: 5).
 		"""
-		self.minima = signal.argrelextrema(self.f, 
-										   numpy.less_equal, 
-										   order=order)[0][:-1]
-		self.maxima = signal.argrelextrema(self.f, 
-										   numpy.greater_equal, 
-										   order=order)[0][:-1]
+		minima = signal.argrelextrema(self.f, numpy.less_equal, 
+									  order=order)[0][:-1]
+		maxima = signal.argrelextrema(self.f, numpy.greater_equal, 
+									  order=order)[0][:-1]
 		# remove close values
-		self.minima = numpy.delete(self.minima, 
-								   [i+1 for i in xrange(self.minima.size-1) 
-								   	if (self.minima[i+1] == self.minima[i]+1)])
-		self.maxima = numpy.delete(self.maxima, 
-								   [i+1 for i in xrange(self.maxima.size-1) 
-								   	if (self.maxima[i+1] == self.maxima[i]+1)])
+		self.minima = minima[numpy.append(True, (minima[1:]-minima[:-1]>order))]
+		self.maxima = maxima[numpy.append(True, (maxima[1:]-maxima[:-1]>order))]
 
 	def get_periods(self):
 		"""Calculates the periods over the time of the simulation 
