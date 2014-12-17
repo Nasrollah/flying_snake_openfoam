@@ -34,6 +34,9 @@ def read_inputs():
 	parser.add_argument('--limits', dest='limits', type=float, nargs='+',
 						default=[None, None, None, None],
 						help='limits of the plot')
+	parser.add_argument('--order', dest='order', type=int, default=5,
+						help='number of neighbors to compare with to get limit '
+							 'indices')
 	parser.add_argument('--legend', dest='legend', type=str, nargs='+',
 						help='legend for each simulation to plot')
 	parser.add_argument('--no-lift', dest='lift', action='store_false',
@@ -78,7 +81,7 @@ class Case(object):
 		"""
 		self.path = path
 
-	def get_limit_indices(self, t_start, t_end):
+	def get_limit_indices(self, t_start, t_end, order):
 		"""Computes the time-limits and their indices in the time array.
 		
 		Arguments
@@ -89,7 +92,9 @@ class Case(object):
 			self.i_start = numpy.where(self.t >= t_start)[0][0]
 			self.i_end = numpy.where(self.t >= t_end)[0][0]-1
 		else:
-			minima = signal.argrelextrema(self.cl, numpy.less, order=20)[0]
+			minima = signal.argrelextrema(self.cl, numpy.less_equal, 
+										  order=order)[0][:-1]
+			minima = minima[numpy.append(True, (minima[1:]-minima[:-1])>order)]
 			self.i_start, self.i_end = minima[-2], minima[-1]
 
 	def get_mean_coefficients(self):
@@ -131,20 +136,21 @@ class Case(object):
 
 class OpenFoamCase(Case):
 	"""Contains force coefficients of an OpenFoam simulation."""
-	def __init__(self, directory, t_start=None, t_end=None):
+	def __init__(self, directory, t_start, t_end, order):
 		"""Reads the force coefficients and computes the mean coefficients 
 		between two ending-times.
 		
 		Arguments
 		---------
 		directory -- directory of the simulation.
-		t_start, t_end -- boundary times (default: None, None).
+		t_start, t_end -- boundary times.
+		order -- number of neighbors to compare with to get limit indices.
 		"""
 		Case.__init__(self, directory)
 		# read force coefficients
 		self.read_coefficients()
 		# compute time-interval indices
-		self.get_limit_indices(t_start, t_end)
+		self.get_limit_indices(t_start, t_end, order)
 		# compute mean coefficients
 		self.get_mean_coefficients()
 		# compute extrema coefficients
@@ -174,7 +180,7 @@ class OpenFoamCase(Case):
 
 class CuIBMCase(Case):
 	"""Contains force coefficients of a cuIBM  simulation."""
-	def __init__(self, path, t_start=None, t_end=None):
+	def __init__(self, path, t_start, t_end, order):
 		"""Reads the force coefficients and computes the mean coefficients 
 		between two ending-times.
 		
@@ -182,12 +188,13 @@ class CuIBMCase(Case):
 		---------
 		path -- path of the cuIBM force coefficients file.
 		t_start, t_end -- boundary times (default: None, None).
+		order -- number of neighbors to compare with to get limit indices.
 		"""
 		Case.__init__(self, path)
 		# read force coefficients
 		self.read_coefficients()
 		# compute time-interval indices
-		self.get_limit_indices(t_start, t_end)
+		self.get_limit_indices(t_start, t_end, order)
 		# compute mean coefficients
 		self.get_mean_coefficients()
 		# compute extrema coefficients
@@ -317,18 +324,23 @@ def main():
 
 	# read coefficients and compute mean values of main OpenFoam simulation
 	cases['main'] = OpenFoamCase(cases['main'], 
-								 t_start=args.times[0], t_end=args.times[1])
+								 t_start=args.times[0], 
+								 t_end=args.times[1],
+								 order=args.order)
 
 	# read coefficients and compute mean values of other OpenFoam simulations
 	for i, directory in enumerate(cases['others']):
 		cases['others'][i] = OpenFoamCase(directory, 
 										  t_start=args.times[0], 
-										  t_end=args.times[1])
+										  t_end=args.times[1],
+										  order=args.order)
 
 	# read coefficients and compute mean values of cuIBM simulation
 	if args.cuibm_path:
 		cases['cuibm'] = CuIBMCase(cases['cuibm'], 
-								   t_start=args.times[0], t_end=args.times[1])
+								   t_start=args.times[0], 
+								   t_end=args.times[1],
+								   order=args.order)
 
 	# read drag coefficient from Koumoutsakos and Leonard (1995)
 	if args.kl1995:
