@@ -326,7 +326,7 @@ def plot_coefficients(cases, args):
 	pyplot.xlim(x_min, x_max)
 	pyplot.ylim(y_min, y_max)
 	# add legend to the figure
-	pyplot.legend(loc='upper left', prop={'size': 14},
+	pyplot.legend(loc='upper left', prop={'size': 12},
 				  bbox_to_anchor=(0.0, -0.05))
 	# save the figure as a .PNG file
 	if args.save:
@@ -373,7 +373,8 @@ def print_coefficients(cases, args):
 												   	case.cd.fluctuations[1]))
 			else:
 				case.get_relative_errors(cases[args.reference])
-				infile.write('%s\t%.4f (%.1f%%)\t%.4f (%.1f%%)\t%.4f (%.1f%%)\n'
+				infile.write('%s\t%.4f (%+.1f%%)\t'
+							 '%.4f (%+.1f%%)\t%.4f (%+.1f%%)\n'
 							 % (case.legend, 
 							 	case.cd.mean, case.cd.errors[0],
 								case.cd.fluctuations[0], case.cd.errors[1],
@@ -388,7 +389,8 @@ def print_coefficients(cases, args):
 												   	case.cl.fluctuations[1]))
 			else:
 				case.get_relative_errors(cases[args.reference])
-				infile.write('%s\t%.4f (%.1f%%)\t%.4f (%.1f%%)\t%.4f (%.1f%%)\n'
+				infile.write('%s\t%.4f (%+.1f%%)\t'
+							 '%.4f (%+.1f%%)\t%.4f (%+.1f%%)\n'
 							 % (case.legend, 
 							 	case.cl.mean, case.cl.errors[0],
 								case.cl.fluctuations[0], case.cl.errors[1],

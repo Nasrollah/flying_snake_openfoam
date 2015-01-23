@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# file: $FLYING_SNAKE_OPENFOAM/scripts/wip_force_coefficients_convergence.py
+# file: $FLYING_SNAKE_OPENFOAM/scripts/analyze_force_coefficients.py
 # author: Olivier Mesnard (mesnardo@gwu.edu)
 # description: Evaluates the convergence of steady or pseudo-steady simulations.
 
@@ -178,7 +178,8 @@ class ForceCoefficient:
 			ax1.axhline(self.f[self.maxima[-1]], label=None,
 						color='b', lw=1, ls='--')
 		ax1.set_ylim(limits[0], limits[1])
-		ax1.legend(loc='upper left', prop={'size': 12})
+		ax1.legend(loc='upper left', prop={'size': 12},
+				   bbox_to_anchor=(1.2, 1.0))
 		# periods
 		if args.plot_frequency:
 			ax2 = ax1.twinx()
@@ -193,7 +194,8 @@ class ForceCoefficient:
 			images_directory = '%s/images' % args.case_directory
 			if not os.path.isdir(images_directory):
 				os.makedirs(images_directory)
-			pyplot.savefig('%s/analyze%s.png' % (images_directory, self.name))
+			pyplot.savefig('%s/analyze%s.png' % (images_directory, self.name), 
+						   bbox_inches='tight')
 
 	def analyze(self, args, limits=[None, None]):
 		"""Computes means, periods, Strouhal number and plots the resuls in a 
@@ -207,7 +209,7 @@ class ForceCoefficient:
 		self.get_extrema_indices(args.order)
 		self.get_periods()
 		self.get_means()
-		self.print_info()
+		#self.print_info()
 		self.plot(args, limits=limits)
 
 
@@ -215,8 +217,6 @@ def main():
 	"""Evaluates the convergence of steady or pseudo-steady simulations."""
 	# parse command-line
 	args = read_inputs()
-
-	print '\n[case] %s' % args.case_directory
 
 	# read force coefficients
 	t, cd, cl = read_force_coefficients(args.case_directory, args.times)
