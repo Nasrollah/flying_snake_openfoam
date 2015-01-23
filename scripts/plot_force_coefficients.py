@@ -326,8 +326,8 @@ def plot_coefficients(cases, args):
 	pyplot.xlim(x_min, x_max)
 	pyplot.ylim(y_min, y_max)
 	# add legend to the figure
-	pyplot.legend(loc='upper left', prop={'size': 'small'},
-						bbox_to_anchor=(1.0,1.0))
+	pyplot.legend(loc='upper left', prop={'size': 14},
+				  bbox_to_anchor=(0.0, -0.05))
 	# save the figure as a .PNG file
 	if args.save:
 		# create images folder if not existing
@@ -402,11 +402,11 @@ def print_coefficients(cases, args):
 							delimiter='\t', comment='#', nrows=len(cases),
 							header=len(cases)+1, index_col=0)
 	if args.times[0]:
-		print ('\nAveraging the instantaneous force coefficients '
+		print ('\nAveraging the instantaneous force coefficients\n'
 			   'between %g and %g seconds of flow simulation:' 
 			   % (args.times[0], args.times[1]))
 	else:
-		print ('\nAveraging the instantaneous force coefficients '
+		print ('\nAveraging the instantaneous force coefficients\n'
 			   'over the last period:')
 	print '\n', df_cd, '\n\n', df_cl, '\n'
 
