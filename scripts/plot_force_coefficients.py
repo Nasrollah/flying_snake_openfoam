@@ -10,8 +10,10 @@ import sys
 import argparse
 import logging
 import datetime
+import collections
 
 import numpy
+import pandas
 from scipy import signal
 from matplotlib import pyplot
 
@@ -23,7 +25,7 @@ def read_inputs():
 									'coefficients for a given simulation',
 						formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	# fill the parser with arguments
-	parser.add_argument('--case', dest='case_directory', type=str, 
+	parser.add_argument('--case', dest='directory', type=str, 
 						default=os.getcwd(),
 						help='directory of the OpenFoam case')
 	parser.add_argument('--show', dest='show', action='store_true',
@@ -48,31 +50,44 @@ def read_inputs():
 						help='name of the file generated (no extension)')
 	parser.add_argument('--no-save', dest='save', action='store_false',
 						help='does not save the figure as a .png file')
-	parser.add_argument('--compare', dest='other_cases', type=str, nargs='+',
+	parser.add_argument('--compare', dest='other_directories', type=str, 
+						nargs='+',default=[],
 						help='directories of other cases for comparison')
-	parser.add_argument('--cuibm', dest='cuibm_path', type=str, default=None,
+	parser.add_argument('--cuibm', dest='cuibm', type=str, default=None,
 						help='path of cuIBM force coefficients for comparison')
+	parser.add_argument('--reference', dest='reference', type=str, default=None)
 	parser.add_argument('--kl1995', dest='kl1995', action='store_true',
 						help='plots instantaneous drag coefficient from '
 							 'Koumoutsakos and Leonard (1995)')
 	parser.set_defaults(save=True, lift=True, drag=True)
 	# parse the command-line
-	args = parser.parse_args()
-	# log the command-line arguments
-	if args.save:
-		log_path = '%s/%s.log' % (args.case_directory, 
-								  os.path.basename(__file__))
-		logging.basicConfig(filename=log_path, format='%(message)s', 
-							level=logging.INFO)
-		logging.info('\n\n%s' % str(datetime.datetime.now()))
-		logging.info(' '.join(sys.argv))
-		logging.info(args)
-	return args
+	return parser.parse_args()
+
+
+class ForceCoefficient(object):
+	def __init__(self):
+		self.values = numpy.empty(0)
+
+	def get_mean(self, i_start, i_end):
+		self.mean = (self.values[i_start:i_end].sum() 
+					 / self.values[i_start:i_end].size)
+
+	def get_deviations(self, i_start, i_end):
+		minimum = self.values[i_start:i_end].min()
+		maximum = self.values[i_start:i_end].max()
+		self.deviations = [minimum, maximum] - self.mean
+
+	def get_relative_errors(self, reference):
+		def error(current, reference):
+			return (current-reference)/reference
+		self.errors = [error(self.mean, reference.mean),
+					   error(self.deviations[0], reference.deviations[0]),
+					   error(self.deviations[1], reference.deviations[1])]
 
 
 class Case(object):
 	"""Contains the path of the simulation."""
-	def __init__(self, path):
+	def __init__(self, path, args):
 		"""Stores the path of the simulation.
 		
 		Arguments
@@ -80,37 +95,46 @@ class Case(object):
 		path -- path of the simulation.
 		"""
 		self.path = path
+		self.legend = os.path.basename(self.path)
+		self.t_start = (None if not args.times[0] else args.times[0])
+		self.t_end = (None if not args.times[1] else args.times[1])
+		self.order = (None if not args.order else args.order)
 
-	def get_limit_indices(self, t_start, t_end, order):
+	def get_limit_indices(self):
 		"""Computes the time-limits and their indices in the time array.
 		
 		Arguments
 		---------
 		t_start, t_end -- time-limits to compute mean coefficients and Strouhal.
 		"""
-		if t_start and t_end:
-			self.i_start = numpy.where(self.t >= t_start)[0][0]
-			self.i_end = numpy.where(self.t >= t_end)[0][0]-1
+		if self.t_start and self.t_end:
+			self.i_start = numpy.where(self.t >= self.t_start)[0][0]
+			self.i_end = numpy.where(self.t >= self.t_end)[0][0]-1
 		else:
-			minima = signal.argrelextrema(self.cl, numpy.less_equal, 
-										  order=order)[0][:-1]
-			minima = minima[numpy.append(True, (minima[1:]-minima[:-1])>order)]
+			minima = signal.argrelextrema(self.cl.values, numpy.less_equal, 
+										  order=self.order)[0][:-1]
+			minima = minima[numpy.append(True, 
+										 (minima[1:]-minima[:-1])>self.order)]
 			self.i_start, self.i_end = minima[-2], minima[-1]
 
 	def get_mean_coefficients(self):
 		"""Computes the mean force coefficients."""
-		self.cd_mean = (self.cd[self.i_start:self.i_end].sum()
-						/ self.cd[self.i_start:self.i_end].size)
-		self.cl_mean = (self.cl[self.i_start:self.i_end].sum()
-						/ self.cl[self.i_start:self.i_end].size)
+		self.cd.get_mean(self.i_start, self.i_end)
+		self.cl.get_mean(self.i_start, self.i_end)
 
-	def get_extremum_coefficients(self):
+	def get_deviations(self):
 		"""Computes the extrema of the force coefficients."""
-		self.cd_max = self.cd[self.i_start:self.i_end].max()
-		self.cd_min = self.cd[self.i_start:self.i_end].min()
-		self.cl_max = self.cl[self.i_start:self.i_end].max()
-		self.cl_min = self.cl[self.i_start:self.i_end].min()
-	
+		self.cd.get_deviations(self.i_start, self.i_end)
+		self.cl.get_deviations(self.i_start, self.i_end)
+
+	def get_relative_errors(self, reference):
+		if self.path != reference.path:
+			self.cd.get_relative_errors(reference)
+			self.cl.get_relative_errors(reference)
+		else:
+			self.cd.errors = ['-', '-', '-']
+			self.cl.errors = ['-', '-', '-']
+
 	def get_strouhal_number(self, is_strouhal):
 		"""Computes the Strouhal number.
 		
@@ -122,34 +146,10 @@ class Case(object):
 		if is_strouhal:
 			self.strouhal = 1.0/(self.t[self.i_end] - self.t[self.i_start])
 
-	def print_info(self):
-		"""Prints info such as the path, the mean coefficients and the 
-		Strouhal number.
-		"""
-		print '\n[case] %s' % self.path
-		print '\tcd = %f (-%f, +%f)' % (self.cd_mean, 
-										abs(self.cd_mean - self.cd_min), 
-										abs(self.cd_mean - self.cd_max))
-		print '\tcl = %f (-%f, +%f)' % (self.cl_mean, 
-										abs(self.cl_mean - self.cl_min), 
-										abs(self.cl_mean - self.cl_max))
-		print '\tSt = %f' % self.strouhal
-
-	def write_log_file(self):
-		"""Writes info about force coefficients into the log file."""
-		logging.info('[case] %s' % self.path)
-		logging.info('\tcd = %f (-%f, +%f)' % (self.cd_mean, 
-											   abs(self.cd_mean - self.cd_min), 
-											   abs(self.cd_mean - self.cd_max)))
-		logging.info('\tcl = %f (-%f, +%f)' % (self.cl_mean, 
-											   abs(self.cl_mean - self.cl_min), 
-											   abs(self.cl_mean - self.cl_max)))
-		logging.info('\tSt = %f' % self.strouhal)
-
 
 class OpenFoamCase(Case):
 	"""Contains force coefficients of an OpenFoam simulation."""
-	def __init__(self, directory, t_start, t_end, order):
+	def __init__(self, directory, args):
 		"""Reads the force coefficients and computes the mean coefficients 
 		between two ending-times.
 		
@@ -159,25 +159,23 @@ class OpenFoamCase(Case):
 		t_start, t_end -- boundary times.
 		order -- number of neighbors to compare with to get limit indices.
 		"""
-		Case.__init__(self, directory)
+		Case.__init__(self, directory, args)
 		# read force coefficients
 		self.read_coefficients()
 		# compute time-interval indices
-		self.get_limit_indices(t_start, t_end, order)
+		self.get_limit_indices()
 		# compute mean coefficients
 		self.get_mean_coefficients()
-		# compute extrema coefficients
-		self.get_extremum_coefficients()
+		# compute deviations
+		self.get_deviations()
 		# compute Strouhal number
-		self.get_strouhal_number((True if t_start == None else False))
-		# print info
-		self.print_info()
+		self.get_strouhal_number((True if self.t_start == None else False))
 
 	def read_coefficients(self):
 		"""Reads force coefficients from files."""
 		# initialization
 		self.t = numpy.empty(0)
-		self.cd, self.cl = numpy.empty(0), numpy.empty(0)
+		self.cd, self.cl = ForceCoefficient(), ForceCoefficient()
 		# read force coefficients files and append to arrays
 		forces_directory = '%s/postProcessing/forceCoeffs' % self.path
 		folders = sorted(os.listdir(forces_directory))
@@ -189,13 +187,13 @@ class OpenFoamCase(Case):
 													  delimiter='\t', 
 													  unpack=True)
 			self.t = numpy.append(self.t, t_tmp)
-			self.cd = numpy.append(self.cd, cd_tmp)
-			self.cl = numpy.append(self.cl, cl_tmp)
+			self.cd.values = numpy.append(self.cd.values, cd_tmp)
+			self.cl.values = numpy.append(self.cl.values, cl_tmp)
 
 
 class CuIBMCase(Case):
 	"""Contains force coefficients of a cuIBM  simulation."""
-	def __init__(self, path, t_start, t_end, order):
+	def __init__(self, path, args):
 		"""Reads the force coefficients and computes the mean coefficients 
 		between two ending-times.
 		
@@ -205,30 +203,31 @@ class CuIBMCase(Case):
 		t_start, t_end -- boundary times (default: None, None).
 		order -- number of neighbors to compare with to get limit indices.
 		"""
-		Case.__init__(self, path)
+		Case.__init__(self, path, args)
+		self.legend = 'cuIBM'
 		# read force coefficients
 		self.read_coefficients()
 		# compute time-interval indices
-		self.get_limit_indices(t_start, t_end, order)
+		self.get_limit_indices()
 		# compute mean coefficients
 		self.get_mean_coefficients()
-		# compute extrema coefficients
-		self.get_extremum_coefficients()
+		# compute deviations
+		self.get_deviations()
 		# compute Strouhal number
-		self.get_strouhal_number((True if t_start == None else False))
-		# print info
-		self.print_info()
+		self.get_strouhal_number((True if self.t_start == None else False))
 
 	def read_coefficients(self):
 		"""Reads force coefficients from cuIBM results."""
 		# read the file
+		self.cd, self.cl = ForceCoefficient(), ForceCoefficient()
 		with open(self.path, 'r') as infile:
-			self.t, self.cd, self.cl = numpy.loadtxt(infile, dtype=float, 
-													 delimiter='\t', 
-													 unpack=True)
+			self.t, self.cd.values, self.cl.values = numpy.loadtxt(infile, 
+																dtype=float, 
+													 			delimiter='\t', 
+													 			unpack=True)
 		# cuIBM script does not include the coefficient 2.0
-		self.cd *= 2.0
-		self.cl *= 2.0
+		self.cd.values *= 2.0
+		self.cl.values *= 2.0
 
 
 class KL1995Case(Case):
@@ -243,8 +242,9 @@ class KL1995Case(Case):
 	def read_drag_coefficients(self):
 		"""Reads and stores the intantaneous drag coefficient."""
 		with open(self.path, 'r') as infile:
-			self.t, self.cd = numpy.loadtxt(infile, dtype=float, delimiter='\t',
-											unpack=True)
+			self.cd = ForceCoefficient()
+			self.t, self.cd.values = numpy.loadtxt(infile, dtype=float, 
+												   delimiter='\t', unpack=True)
 			self.t *= 0.5	# to use the same time-scale
 
 
@@ -257,17 +257,10 @@ def plot_coefficients(cases, args):
 	args -- namespace of command-line arguments
 	"""
 	# get the legend for each plot
-	legend = {}
-	if not args.legend:
-		legend['main'] = os.path.basename(cases['main'].path)
-		legend['others'] = []
-		for case in cases['others']:
-			legend['others'].append(os.path.basename(case.path))
-	else:
-		legend['main'] = args.legend[0]
-		legend['others'] = []
-		for i in xrange(len(cases['others'])):
-			legend['others'].append(args.legend[i+1])
+	if args.legend:
+		cases[args.directory].legend = args.legend[0]
+		for i, directory in enumerate(args.other_directories):
+			cases[directory].legend = args.legend[i+1]
 	# figure parameters
 	pyplot.figure(figsize=(10, 6))
 	pyplot.grid(True)
@@ -275,31 +268,31 @@ def plot_coefficients(cases, args):
 	pyplot.ylabel('force coefficients', fontsize=16)
 	# plot the main OpenFoam force coefficients
 	if args.drag:
-		pyplot.plot(cases['main'].t, cases['main'].cd, 
-					label=r'$C_d$ - %s' % legend['main'], 
+		pyplot.plot(cases[args.directory].t, cases[args.directory].cd.values, 
+					label=r'$C_d$ - %s' % cases[args.directory].legend, 
 					color='r', ls='-', lw=2)
 	if args.lift:
-		pyplot.plot(cases['main'].t, cases['main'].cl, 
-					label=r'$C_l$ - %s' % legend['main'], 
+		pyplot.plot(cases[args.directory].t, cases[args.directory].cl.values, 
+					label=r'$C_l$ - %s' % cases[args.directory].legend, 
 					color='b', ls='-', lw=2)
 	# plot other OpenFoam force coefficients
 	colors = ['g', 'c', 'm', 'y']
-	for i, case in enumerate(cases['others']):
+	for i, directory in enumerate(args.other_directories):
 		if args.drag:
-			pyplot.plot(case.t, case.cd, 
-						label=r'$C_d$ - %s' % legend['others'][i],
+			pyplot.plot(cases[directory].t, cases[directory].cd.values, 
+						label=r'$C_d$ - %s' % cases[directory].legend,
 						color=colors[i], ls='-', lw=1)
 		if args.lift:
-			pyplot.plot(case.t, case.cl,
-						label=r'$C_l$ - %s' % legend['others'][i],
+			pyplot.plot(cases[directory].t, cases[directory].cl.values,
+						label=r'$C_l$ - %s' % cases[directory].legend,
 						color=colors[i], ls='--', lw=1)
 	# plot cuIBM force coefficients
-	if cases['cuibm']:
+	if cases[args.cuibm]:
 		if args.drag:
-			pyplot.plot(cases['cuibm'].t, cases['cuibm'].cd,
+			pyplot.plot(cases[args.cuibm].t, cases[args.cuibm].cd.values,
 						label=r'$C_d$ - cuIBM', color='k', ls='-', lw=1)
 		if args.drag:
-			pyplot.plot(cases['cuibm'].t, cases['cuibm'].cl,
+			pyplot.plot(cases[args.cuibm].t, cases[args.cuibm].cl.values,
 						label=r'$C_l$ - cuIBM', color='k', ls='--', lw=1)
 	# plot Koumoutsakos and Leonard (1995) drag coefficients
 	if args.kl1995:
@@ -307,8 +300,8 @@ def plot_coefficients(cases, args):
 					label=r'$C_d$ - Koumoutsakos and Leonard (1995)', 
 					color='k', lw=0, marker='o', markersize=6)
 	# define limits of the figure
-	x_min = (cases['main'].t[0] if not args.limits else args.limits[0])
-	x_max = (cases['main'].t[-1] if not args.limits else args.limits[1])
+	x_min = (cases[args.directory].t[0] if not args.limits else args.limits[0])
+	x_max = (cases[args.directory].t[-1] if not args.limits else args.limits[1])
 	y_min = (-2.0 if not args.limits else args.limits[2])
 	y_max = (+2.0 if not args.limits else args.limits[3])
 	pyplot.xlim(x_min, x_max)
@@ -319,45 +312,66 @@ def plot_coefficients(cases, args):
 	# save the figure as a .PNG file
 	if args.save:
 		# create images folder if not existing
-		images_directory = '%s/images' % args.case_directory
+		images_directory = '%s/images' % args.directory
 		if not os.path.isdir(images_directory):
 			os.makedirs(images_directory)
 		pyplot.savefig('%s/%s.png' % (images_directory, args.image_name),
 					   bbox_inches='tight')
-	# display the figure
+	# display figure
 	if args.show:
 		pyplot.show()
 
 
+def print_coefficients(cases, args):
+	# compute relative errors
+	for key, case in cases.iteritems():
+		if args.reference:
+			case.get_relative_errors(cases[args.reference])
+
+	# write data in csv file
+	csv_path = '%s/postProcessing/%s.csv' % (args.directory, args.image_name)
+	with open(csv_path, 'w') as infile:
+		infile.write('simulation\tcd\tmin\tmax\n')
+		for key, case in cases.iteritems():
+			infile.write('%s\t%.4f\t%.4f\t%.4f\n' % (case.legend,
+												   	 case.cd.mean,
+												   	 case.cd.deviations[0],
+												   	 case.cd.deviations[1]))
+		infile.write('simulation\tcl\tmin\tmax\n')
+		for key, case in cases.iteritems():
+			infile.write('%s\t%.4f\t%.4f\t%.4f\n' % (case.legend,
+												   	 case.cl.mean,
+												   	 case.cl.deviations[0],
+													 case.cl.deviations[1]))
+	
+	# display results using pandas
+	df_cd = pandas.read_csv(csv_path, 
+							delimiter='\t', comment='#', nrows=len(cases),
+							header=0, index_col=0)
+	df_cl = pandas.read_csv(csv_path, 
+							delimiter='\t', comment='#', nrows=len(cases),
+							header=len(cases)+1, index_col=0)
+	print '\n', df_cd, '\n\n', df_cl, '\n'
+
+	
 def main():
 	"""Plots aerodynamic coefficients."""
 	# parse the command-line
 	args = read_inputs()
 
-	# store case directories
-	cases = {'main': args.case_directory,
-			 'others': ([] if not args.other_cases else args.other_cases),
-			 'cuibm': (None if not args.cuibm_path else args.cuibm_path)}
+	# dictionary containing the force coefficients of each case
+	cases = collections.OrderedDict()
 
-	# read coefficients and compute mean values of main OpenFoam simulation
-	cases['main'] = OpenFoamCase(cases['main'], 
-								 t_start=args.times[0], 
-								 t_end=args.times[1],
-								 order=args.order)
+	# read and analyze force coefficients from cuIBM results
+	if args.cuibm:
+		cases[args.cuibm] = CuIBMCase(args.cuibm, args)
 
-	# read coefficients and compute mean values of other OpenFoam simulations
-	for i, directory in enumerate(cases['others']):
-		cases['others'][i] = OpenFoamCase(directory, 
-										  t_start=args.times[0], 
-										  t_end=args.times[1],
-										  order=args.order)
+	# read and analyze force coefficients from main OpenFoam case
+	cases[args.directory] = OpenFoamCase(args.directory, args)
 
-	# read coefficients and compute mean values of cuIBM simulation
-	if args.cuibm_path:
-		cases['cuibm'] = CuIBMCase(cases['cuibm'], 
-								   t_start=args.times[0], 
-								   t_end=args.times[1],
-								   order=args.order)
+	# read and analyze force coefficients from other OpenFoam cases
+	for directory in args.other_directories:
+		cases[directory] = OpenFoamCase(directory, args)
 
 	# read drag coefficient from Koumoutsakos and Leonard (1995)
 	if args.kl1995:
@@ -367,17 +381,11 @@ def main():
 						'koumoutsakos_leonard_1995.dat')
 		cases['kl1995'] = KL1995Case(kl1995_path)
 
-	# write mean force coefficients and Strouhal numbers in log file
-	if args.save:
-		cases['main'].write_log_file()
-		for case in cases['others']:
-			case.write_log_file()
-		if args.cuibm_path:
-			cases['cuibm'].write_log_file()
+	# print force coefficients
+	print_coefficients(cases, args)
 
 	# plot force coefficients
 	plot_coefficients(cases, args)
-
 
 if __name__ == '__main__':
 	main()
