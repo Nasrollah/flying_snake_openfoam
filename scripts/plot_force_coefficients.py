@@ -8,8 +8,6 @@
 import os
 import sys
 import argparse
-import logging
-import datetime
 import collections
 
 import numpy
@@ -55,7 +53,8 @@ def read_inputs():
 						help='directories of other cases for comparison')
 	parser.add_argument('--cuibm', dest='cuibm', type=str, default=None,
 						help='path of cuIBM force coefficients for comparison')
-	parser.add_argument('--reference', dest='reference', type=str, default=None)
+	parser.add_argument('--reference', dest='reference', type=str, default=None,
+						help='case reference to compute relative errors')
 	parser.add_argument('--kl1995', dest='kl1995', action='store_true',
 						help='plots instantaneous drag coefficient from '
 							 'Koumoutsakos and Leonard (1995)')
@@ -65,34 +64,63 @@ def read_inputs():
 
 
 class ForceCoefficient(object):
-	def __init__(self):
+	"""Contains the values of a force coefficient, 
+	as well as its means and fluctuations and errors relative to a reference.
+	"""
+	def __init__(self, name):
+		"""Initializes the force coefficient and its name.
+		
+		Arguments
+		---------
+		name -- name of the force coefficient.
+		"""
+		self.name = name
 		self.values = numpy.empty(0)
 
 	def get_mean(self, i_start, i_end):
-		self.mean = (self.values[i_start:i_end].sum() 
-					 / self.values[i_start:i_end].size)
+		"""Computes the mean force coefficient.
+		
+		Arguments
+		---------
+		i_start, i_end -- indices of the interval to work with.
+		"""
+		self.mean = numpy.mean(self.values[i_start:i_end])
 
-	def get_deviations(self, i_start, i_end):
+	def get_fluctuations(self, i_start, i_end):
+		"""Computes the fluctuations about the mean.
+		
+		Arguments
+		---------
+		i_start, i_end --indices of the interval to work with.
+		"""
 		minimum = self.values[i_start:i_end].min()
 		maximum = self.values[i_start:i_end].max()
-		self.deviations = [minimum, maximum] - self.mean
+		self.fluctuations = [minimum, maximum] - self.mean
 
 	def get_relative_errors(self, reference):
+		"""Computes the relative errors.
+		
+		Arguments
+		---------
+		reference -- force coefficient to use as a reference.
+		"""
 		def error(current, reference):
-			return (current-reference)/reference
+			return 100.0 * (current-reference)/abs(reference)
 		self.errors = [error(self.mean, reference.mean),
-					   error(self.deviations[0], reference.deviations[0]),
-					   error(self.deviations[1], reference.deviations[1])]
+					   error(self.fluctuations[0], reference.fluctuations[0]),
+					   error(self.fluctuations[1], reference.fluctuations[1])]
 
 
 class Case(object):
-	"""Contains the path of the simulation."""
+	"""Contains information about the simulation."""
 	def __init__(self, path, args):
-		"""Stores the path of the simulation.
+		"""Stores the path and the legend of the simulation,
+		as well as information about the interval to work with.
 		
 		Arguments
 		---------
 		path -- path of the simulation.
+		args -- command-line arguments.
 		"""
 		self.path = path
 		self.legend = os.path.basename(self.path)
@@ -101,12 +129,7 @@ class Case(object):
 		self.order = (None if not args.order else args.order)
 
 	def get_limit_indices(self):
-		"""Computes the time-limits and their indices in the time array.
-		
-		Arguments
-		---------
-		t_start, t_end -- time-limits to compute mean coefficients and Strouhal.
-		"""
+		"""Computes the indices in the array of the time-limits."""
 		if self.t_start and self.t_end:
 			self.i_start = numpy.where(self.t >= self.t_start)[0][0]
 			self.i_end = numpy.where(self.t >= self.t_end)[0][0]-1
@@ -122,18 +145,21 @@ class Case(object):
 		self.cd.get_mean(self.i_start, self.i_end)
 		self.cl.get_mean(self.i_start, self.i_end)
 
-	def get_deviations(self):
-		"""Computes the extrema of the force coefficients."""
-		self.cd.get_deviations(self.i_start, self.i_end)
-		self.cl.get_deviations(self.i_start, self.i_end)
+	def get_fluctuations(self):
+		"""Computes the fluctuations of the force coefficients."""
+		self.cd.get_fluctuations(self.i_start, self.i_end)
+		self.cl.get_fluctuations(self.i_start, self.i_end)
 
 	def get_relative_errors(self, reference):
-		if self.path != reference.path:
-			self.cd.get_relative_errors(reference)
-			self.cl.get_relative_errors(reference)
-		else:
-			self.cd.errors = ['-', '-', '-']
-			self.cl.errors = ['-', '-', '-']
+		"""Computes the relative error of the mean and fluctuations 
+		of each force coefficient.
+		
+		Arguments
+		---------
+		reference -- case reference to compute relative errors.
+		"""
+		self.cd.get_relative_errors(reference.cd)
+		self.cl.get_relative_errors(reference.cl)
 
 	def get_strouhal_number(self, is_strouhal):
 		"""Computes the Strouhal number.
@@ -150,14 +176,13 @@ class Case(object):
 class OpenFoamCase(Case):
 	"""Contains force coefficients of an OpenFoam simulation."""
 	def __init__(self, directory, args):
-		"""Reads the force coefficients and computes the mean coefficients 
-		between two ending-times.
+		"""Reads the force coefficients and computes the mean coefficients, 
+		the fluctuations and the Strouhal number.
 		
 		Arguments
 		---------
 		directory -- directory of the simulation.
-		t_start, t_end -- boundary times.
-		order -- number of neighbors to compare with to get limit indices.
+		args -- command-line arguments.
 		"""
 		Case.__init__(self, directory, args)
 		# read force coefficients
@@ -166,8 +191,8 @@ class OpenFoamCase(Case):
 		self.get_limit_indices()
 		# compute mean coefficients
 		self.get_mean_coefficients()
-		# compute deviations
-		self.get_deviations()
+		# compute fluctuations
+		self.get_fluctuations()
 		# compute Strouhal number
 		self.get_strouhal_number((True if self.t_start == None else False))
 
@@ -175,8 +200,8 @@ class OpenFoamCase(Case):
 		"""Reads force coefficients from files."""
 		# initialization
 		self.t = numpy.empty(0)
-		self.cd, self.cl = ForceCoefficient(), ForceCoefficient()
-		# read force coefficients files and append to arrays
+		self.cd, self.cl = ForceCoefficient('cd'), ForceCoefficient('cl')
+		# read force coefficients from files and append to arrays
 		forces_directory = '%s/postProcessing/forceCoeffs' % self.path
 		folders = sorted(os.listdir(forces_directory))
 		for folder in folders:
@@ -194,14 +219,13 @@ class OpenFoamCase(Case):
 class CuIBMCase(Case):
 	"""Contains force coefficients of a cuIBM  simulation."""
 	def __init__(self, path, args):
-		"""Reads the force coefficients and computes the mean coefficients 
-		between two ending-times.
+		"""Reads the force coefficients and computes the mean coefficients, 
+		the fluctuations and the Strouhal number.
 		
 		Arguments
 		---------
 		path -- path of the cuIBM force coefficients file.
-		t_start, t_end -- boundary times (default: None, None).
-		order -- number of neighbors to compare with to get limit indices.
+		args -- command-line arguments.
 		"""
 		Case.__init__(self, path, args)
 		self.legend = 'cuIBM'
@@ -211,15 +235,15 @@ class CuIBMCase(Case):
 		self.get_limit_indices()
 		# compute mean coefficients
 		self.get_mean_coefficients()
-		# compute deviations
-		self.get_deviations()
+		# compute fluctuations
+		self.get_fluctuations()
 		# compute Strouhal number
 		self.get_strouhal_number((True if self.t_start == None else False))
 
 	def read_coefficients(self):
 		"""Reads force coefficients from cuIBM results."""
 		# read the file
-		self.cd, self.cl = ForceCoefficient(), ForceCoefficient()
+		self.cd, self.cl = ForceCoefficient('cd'), ForceCoefficient('cl')
 		with open(self.path, 'r') as infile:
 			self.t, self.cd.values, self.cl.values = numpy.loadtxt(infile, 
 																dtype=float, 
@@ -236,13 +260,13 @@ class KL1995Case(Case):
 		"""Get instantaneous drag coefficient 
 		reported by Koumoutsakos and Leonard (1995).
 		"""
-		Case.__init__(self, path)
+		Case.__init__(self, path, args)
 		self.read_drag_coefficients()
 
 	def read_drag_coefficients(self):
 		"""Reads and stores the intantaneous drag coefficient."""
 		with open(self.path, 'r') as infile:
-			self.cd = ForceCoefficient()
+			self.cd = ForceCoefficient('cd')
 			self.t, self.cd.values = numpy.loadtxt(infile, dtype=float, 
 												   delimiter='\t', unpack=True)
 			self.t *= 0.5	# to use the same time-scale
@@ -254,13 +278,8 @@ def plot_coefficients(cases, args):
 	Arguments
 	--------
 	cases -- dictionary that contains info about all simulations to plot.
-	args -- namespace of command-line arguments
+	args -- command-line arguments
 	"""
-	# get the legend for each plot
-	if args.legend:
-		cases[args.directory].legend = args.legend[0]
-		for i, directory in enumerate(args.other_directories):
-			cases[directory].legend = args.legend[i+1]
 	# figure parameters
 	pyplot.figure(figsize=(10, 6))
 	pyplot.grid(True)
@@ -323,6 +342,19 @@ def plot_coefficients(cases, args):
 
 
 def print_coefficients(cases, args):
+	"""Prints the mean, fluctuations and relative errors 
+	of the different simulations.
+
+	Arguments
+	---------
+	cases -- dictionary containing the different cases.
+	args -- command-line arguments.
+	"""
+	# get the legend for each simulation
+	if args.legend:
+		cases[args.directory].legend = args.legend[0]
+		for i, directory in enumerate(args.other_directories):
+			cases[directory].legend = args.legend[i+1]
 	# compute relative errors
 	for key, case in cases.iteritems():
 		if args.reference:
@@ -331,18 +363,36 @@ def print_coefficients(cases, args):
 	# write data in csv file
 	csv_path = '%s/postProcessing/%s.csv' % (args.directory, args.image_name)
 	with open(csv_path, 'w') as infile:
+		# write drag coefficients
 		infile.write('simulation\tcd\tmin\tmax\n')
 		for key, case in cases.iteritems():
-			infile.write('%s\t%.4f\t%.4f\t%.4f\n' % (case.legend,
-												   	 case.cd.mean,
-												   	 case.cd.deviations[0],
-												   	 case.cd.deviations[1]))
+			if case.path == args.reference:
+				infile.write('%s\t%.4f\t%.4f\t%.4f\n' % (case.legend,
+												   	case.cd.mean,
+												   	case.cd.fluctuations[0],
+												   	case.cd.fluctuations[1]))
+			else:
+				case.get_relative_errors(cases[args.reference])
+				infile.write('%s\t%.4f (%.1f%%)\t%.4f (%.1f%%)\t%.4f (%.1f%%)\n'
+							 % (case.legend, 
+							 	case.cd.mean, case.cd.errors[0],
+								case.cd.fluctuations[0], case.cd.errors[1],
+								case.cd.fluctuations[1], case.cd.errors[2]))
+		# write lift coefficients
 		infile.write('simulation\tcl\tmin\tmax\n')
 		for key, case in cases.iteritems():
-			infile.write('%s\t%.4f\t%.4f\t%.4f\n' % (case.legend,
-												   	 case.cl.mean,
-												   	 case.cl.deviations[0],
-													 case.cl.deviations[1]))
+			if case.path == args.reference:
+				infile.write('%s\t%.4f\t%.4f\t%.4f\n' % (case.legend,
+												   	case.cl.mean,
+												   	case.cl.fluctuations[0],
+												   	case.cl.fluctuations[1]))
+			else:
+				case.get_relative_errors(cases[args.reference])
+				infile.write('%s\t%.4f (%.1f%%)\t%.4f (%.1f%%)\t%.4f (%.1f%%)\n'
+							 % (case.legend, 
+							 	case.cl.mean, case.cl.errors[0],
+								case.cl.fluctuations[0], case.cl.errors[1],
+								case.cl.fluctuations[1], case.cl.errors[2]))
 	
 	# display results using pandas
 	df_cd = pandas.read_csv(csv_path, 
@@ -351,6 +401,13 @@ def print_coefficients(cases, args):
 	df_cl = pandas.read_csv(csv_path, 
 							delimiter='\t', comment='#', nrows=len(cases),
 							header=len(cases)+1, index_col=0)
+	if args.times[0]:
+		print ('\nAveraging the instantaneous force coefficients '
+			   'between %g and %g seconds of flow simulation:' 
+			   % (args.times[0], args.times[1]))
+	else:
+		print ('\nAveraging the instantaneous force coefficients '
+			   'over the last period:')
 	print '\n', df_cd, '\n\n', df_cl, '\n'
 
 	
