@@ -63,6 +63,17 @@ def read_inputs():
 	return parser.parse_args()
 
 
+def relative_change(current, reference):
+	"""Computes the relative change as a percentage.
+	
+	Arguments
+	---------
+	current -- current value.
+	reference -- value used as a reference.
+	"""
+	return 100.0 * (current-reference) / abs(reference)
+
+
 class ForceCoefficient(object):
 	"""Contains the values of a force coefficient, 
 	as well as its means and fluctuations and errors relative to a reference.
@@ -104,11 +115,11 @@ class ForceCoefficient(object):
 		---------
 		reference -- force coefficient to use as a reference.
 		"""
-		def error(current, reference):
-			return 100.0 * (current-reference)/abs(reference)
-		self.errors = [error(self.mean, reference.mean),
-					   error(self.fluctuations[0], reference.fluctuations[0]),
-					   error(self.fluctuations[1], reference.fluctuations[1])]
+		self.errors = [relative_change(self.mean, reference.mean),
+					   relative_change(self.fluctuations[0], 
+					   				   reference.fluctuations[0]),
+					   relative_change(self.fluctuations[1], 
+					   				   reference.fluctuations[1])]
 
 
 class Case(object):
@@ -362,41 +373,41 @@ def print_coefficients(cases, args):
 
 	# write data in csv file
 	csv_path = '%s/postProcessing/%s.csv' % (args.directory, args.image_name)
-	with open(csv_path, 'w') as infile:
+	with open(csv_path, 'w') as outfile:
 		# write drag coefficients
-		infile.write('simulation\tcd\tmin\tmax\n')
+		outfile.write('simulation\tcd\tmin\tmax\n')
 		for key, case in cases.iteritems():
 			if case.path == args.reference:
-				infile.write('%s\t%.4f\t%.4f\t%.4f\n' % (case.legend,
+				outfile.write('%s\t%.4f\t%.4f\t%.4f\n' % (case.legend,
 												   	case.cd.mean,
 												   	case.cd.fluctuations[0],
 												   	case.cd.fluctuations[1]))
 			else:
 				case.get_relative_errors(cases[args.reference])
-				infile.write('%s\t%.4f (%+.1f%%)\t'
-							 '%.4f (%+.1f%%)\t%.4f (%+.1f%%)\n'
-							 % (case.legend, 
-							 	case.cd.mean, case.cd.errors[0],
-								case.cd.fluctuations[0], case.cd.errors[1],
-								case.cd.fluctuations[1], case.cd.errors[2]))
+				outfile.write('%s\t%.4f (%+.1f%%)\t'
+							  '%.4f (%+.1f%%)\t%.4f (%+.1f%%)\n'
+							  % (case.legend, 
+							 	 case.cd.mean, case.cd.errors[0],
+								 case.cd.fluctuations[0], case.cd.errors[1],
+								 case.cd.fluctuations[1], case.cd.errors[2]))
 		# write lift coefficients
-		infile.write('simulation\tcl\tmin\tmax\n')
+		outfile.write('simulation\tcl\tmin\tmax\n')
 		for key, case in cases.iteritems():
 			if case.path == args.reference:
-				infile.write('%s\t%.4f\t%.4f\t%.4f\n' % (case.legend,
+				outfile.write('%s\t%.4f\t%.4f\t%.4f\n' % (case.legend,
 												   	case.cl.mean,
 												   	case.cl.fluctuations[0],
 												   	case.cl.fluctuations[1]))
 			else:
 				case.get_relative_errors(cases[args.reference])
-				infile.write('%s\t%.4f (%+.1f%%)\t'
-							 '%.4f (%+.1f%%)\t%.4f (%+.1f%%)\n'
-							 % (case.legend, 
-							 	case.cl.mean, case.cl.errors[0],
-								case.cl.fluctuations[0], case.cl.errors[1],
-								case.cl.fluctuations[1], case.cl.errors[2]))
+				outfile.write('%s\t%.4f (%+.1f%%)\t'
+							  '%.4f (%+.1f%%)\t%.4f (%+.1f%%)\n'
+							  % (case.legend, 
+							 	 case.cl.mean, case.cl.errors[0],
+								 case.cl.fluctuations[0], case.cl.errors[1],
+								 case.cl.fluctuations[1], case.cl.errors[2]))
 	
-	# display results using pandas
+	# create dataframes for force coefficients using pandas
 	df_cd = pandas.read_csv(csv_path, 
 							delimiter='\t', comment='#', nrows=len(cases),
 							header=0, index_col=0)
@@ -407,10 +418,29 @@ def print_coefficients(cases, args):
 		print ('\nAveraging the instantaneous force coefficients\n'
 			   'between %g and %g seconds of flow simulation:' 
 			   % (args.times[0], args.times[1]))
+		print '\n', df_cd, '\n\n', df_cl, '\n'
 	else:
+		# write results in csv file
+		with open(csv_path, 'a') as outfile:
+			outfile.write('simulation\tSt\n')
+			for key, case in cases.iteritems():
+				if case.path == args.reference:
+					outfile.write('%s\t%.4f\n' % (case.legend, case.strouhal))
+				else:
+					# compute relative error in Strouhal number
+					error_strouhal = relative_change(case.strouhal, 
+												cases[args.reference].strouhal)
+					outfile.write('%s\t%.4f (%+.1f%%)\n' % (case.legend, 
+														case.strouhal, 
+														error_strouhal))
+		# create dataframe for Strouhal number using pandas
+		df_st = pandas.read_csv(csv_path,
+								delimiter='\t', comment='#', nrows=len(cases),
+								header=2*(len(cases)+1), index_col=0)
+		# display dataframes
 		print ('\nAveraging the instantaneous force coefficients\n'
 			   'over the last period:')
-	print '\n', df_cd, '\n\n', df_cl, '\n'
+		print '\n', df_cd, '\n\n', df_cl, '\n\n', df_st, '\n'
 
 	
 def main():
