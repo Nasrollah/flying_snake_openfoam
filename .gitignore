@@ -9,3 +9,6 @@ test/*
 
 # ignore swapping files
 *.swp
+
+# ignore IPython checkpoints
+*/.ipynb_checkpoints
