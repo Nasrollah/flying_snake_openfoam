@@ -350,6 +350,8 @@ def plot_coefficients(cases, args):
 	# display figure
 	if args.show:
 		pyplot.show()
+	else:
+		pyplot.close()
 
 
 def print_coefficients(cases, args):
