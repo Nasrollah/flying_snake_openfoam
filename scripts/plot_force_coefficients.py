@@ -317,7 +317,7 @@ def plot_coefficients(cases, args):
 						label=r'$C_l$ - %s' % cases[directory].legend,
 						color=colors[i], ls='--', lw=1)
 	# plot cuIBM force coefficients
-	if cases[args.cuibm]:
+	if args.cuibm:
 		if args.drag:
 			pyplot.plot(cases[args.cuibm].t, cases[args.cuibm].cd.values,
 						label=r'$C_d$ - cuIBM', color='k', ls='-', lw=1)
