@@ -197,8 +197,10 @@ def main():
 		print 'Time: %g' % time_step
 		view.ViewTime = time_step
 		text.Text = 'time = %g' % time_step
-		WriteImage('%s/%s_%s_%g.png' 
-				   % (images_path, args.variable,  args.view, time_step))
+		WriteImage('%s/%s_%s_%03d.%s.png' 
+				   % (images_path, args.variable,  args.view, 
+				   	  int(time_step), 
+					  str(time_step-int(time_step)).split('.')[1]))
 
 
 if __name__ == '__main__':
