@@ -12,3 +12,6 @@ test/*
 
 # ignore IPython checkpoints
 */.ipynb_checkpoints
+
+# ignore reports folder
+reports/*
